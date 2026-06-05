@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#56c7e8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="海宝彩虹城" />
+    <meta name="description" content="手机浏览器打开就能进入海宝彩虹城。" />
+    <meta property="og:title" content="海宝彩虹城" />
+    <meta property="og:description" content="进入彩虹城，领取签到奖励，捕捉精灵，开启活动冒险。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/assets/legacy/optimized/title/premium_entry_image2.webp" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>海宝彩虹城</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+        background: #4fc4e8;
+        font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-drag: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-drag: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      body {
+        position: fixed;
+        inset: 0;
+        min-height: 100dvh;
+        color: #fff;
+      }
+      button,
+      a {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+      .page {
+        position: relative;
+        min-height: 100dvh;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        padding: max(18px, env(safe-area-inset-top)) 18px
+          max(18px, env(safe-area-inset-bottom));
+        background:
+          radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.36), transparent 34%),
+          linear-gradient(180deg, rgba(20, 112, 160, 0.02), rgba(5, 41, 77, 0.62)),
+          url('/assets/legacy/optimized/title/premium_entry_image2.webp') center / cover no-repeat;
+      }
+      .page::before,
+      .page::after {
+        content: '';
+        position: absolute;
+        inset: -8%;
+        pointer-events: none;
+      }
+      .page::before {
+        background:
+          linear-gradient(100deg, transparent 19%, rgba(255, 255, 255, 0.14) 25%, transparent 34%),
+          linear-gradient(78deg, transparent 58%, rgba(255, 255, 255, 0.11) 64%, transparent 72%);
+        animation: light-sway 6s ease-in-out infinite alternate;
+      }
+      .page::after {
+        background:
+          radial-gradient(circle at 18% 76%, rgba(255, 244, 168, 0.22), transparent 14%),
+          radial-gradient(circle at 86% 74%, rgba(103, 216, 255, 0.22), transparent 13%),
+          linear-gradient(90deg, rgba(0, 26, 55, 0.22), transparent 17%, transparent 83%, rgba(0, 26, 55, 0.22));
+      }
+      .fullscreen {
+        position: fixed;
+        left: max(12px, env(safe-area-inset-left));
+        top: max(12px, env(safe-area-inset-top));
+        z-index: 20;
+        width: 82px;
+        max-width: calc(100vw - 24px);
+        border: 2px solid rgba(255, 255, 255, 0.86);
+        border-radius: 8px;
+        padding: 9px 12px;
+        background: linear-gradient(180deg, rgba(255, 211, 90, 0.98), rgba(255, 143, 47, 0.98));
+        color: #713500;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .launch {
+        position: relative;
+        z-index: 5;
+        width: min(760px, 100%);
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+        text-align: center;
+        text-shadow: 0 3px 12px rgba(5, 31, 65, 0.56);
+        transform: translateY(16px);
+      }
+      .kicker {
+        margin: 0;
+        padding: 8px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        border-radius: 999px;
+        background: rgba(5, 48, 90, 0.58);
+        color: #fff7be;
+        font-size: clamp(13px, 2.6vw, 16px);
+        font-weight: 700;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(44px, 11vw, 84px);
+        letter-spacing: 0;
+        line-height: 0.98;
+        color: #ecfbff;
+        -webkit-text-stroke: 1px rgba(6, 102, 180, 0.62);
+        text-shadow:
+          0 5px 0 #0866b4,
+          0 10px 22px rgba(2, 31, 71, 0.42),
+          0 0 24px rgba(255, 255, 255, 0.44);
+      }
+      .hook-row {
+        width: min(660px, 100%);
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .hook {
+        min-height: 82px;
+        border: 2px solid rgba(255, 255, 255, 0.58);
+        border-radius: 12px;
+        padding: 11px 8px 9px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(6, 51, 93, 0.62)),
+          rgba(5, 48, 90, 0.52);
+        box-shadow: 0 12px 28px rgba(0, 25, 55, 0.22);
+        backdrop-filter: blur(3px);
+      }
+      .mark {
+        width: 34px;
+        height: 34px;
+        margin: 0 auto 4px;
+        border: 2px solid rgba(255, 255, 255, 0.88);
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #fff, var(--accent));
+        box-shadow: 0 0 18px rgba(255, 255, 255, 0.32);
+      }
+      .hook strong {
+        display: block;
+        color: #fff7be;
+        font-size: clamp(14px, 3.3vw, 18px);
+        line-height: 1.25;
+      }
+      .hook span {
+        display: block;
+        margin-top: 2px;
+        color: #e8fbff;
+        font-size: clamp(11px, 2.5vw, 13px);
+        line-height: 1.25;
+      }
+      .enter {
+        position: relative;
+        width: min(390px, 92vw);
+        overflow: hidden;
+        border: 3px solid rgba(255, 255, 255, 0.94);
+        border-radius: 12px;
+        padding: 15px 22px 14px;
+        background: linear-gradient(180deg, #ffdf67, #ff962e 62%, #f8791d);
+        color: #783600;
+        font-size: clamp(22px, 5.7vw, 30px);
+        font-weight: 900;
+        box-shadow:
+          0 15px 32px rgba(0, 0, 0, 0.3),
+          inset 0 3px 0 rgba(255, 255, 255, 0.42);
+        animation: button-float 1.45s ease-in-out infinite alternate;
+      }
+      .enter::after {
+        content: '';
+        position: absolute;
+        top: -24px;
+        bottom: -24px;
+        left: -80px;
+        width: 54px;
+        transform: rotate(15deg);
+        background: rgba(255, 255, 255, 0.4);
+        animation: button-glint 2.4s ease-in-out infinite;
+      }
+      .enter small {
+        display: block;
+        margin-top: 2px;
+        color: #fff7be;
+        font-size: 13px;
+        font-weight: 800;
+        text-shadow: 0 2px 4px rgba(120, 54, 0, 0.5);
+      }
+      .route {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+      .route span {
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(3, 43, 81, 0.58);
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        color: #e8fbff;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .pet {
+        position: absolute;
+        z-index: 4;
+        width: min(112px, 20vw);
+        aspect-ratio: 1;
+        background: center / contain no-repeat;
+        filter: drop-shadow(0 12px 12px rgba(0, 20, 55, 0.34));
+        pointer-events: none;
+      }
+      .pet.fire {
+        left: max(22px, env(safe-area-inset-left));
+        bottom: max(86px, calc(env(safe-area-inset-bottom) + 76px));
+        background-image: url('/assets/legacy/fast/image2-restored/pets/legacy_pet_flame_puppy_dog_image2_fast.webp');
+        animation: pet-bob 1.6s ease-in-out infinite alternate;
+      }
+      .pet.wing {
+        right: max(20px, env(safe-area-inset-right));
+        top: max(92px, calc(env(safe-area-inset-top) + 72px));
+        background-image: url('/assets/legacy/fast/image2-restored/pets/legacy_pet_rainbow_wing_image2_fast.webp');
+        animation: pet-float 2.1s ease-in-out infinite alternate;
+      }
+      .bubble {
+        position: absolute;
+        z-index: 2;
+        width: var(--size);
+        height: var(--size);
+        left: var(--x);
+        bottom: -36px;
+        border: 1px solid rgba(255, 255, 255, 0.52);
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        animation: bubble-up var(--duration) ease-in-out infinite;
+        animation-delay: var(--delay);
+        pointer-events: none;
+      }
+      @keyframes bubble-up {
+        0% {
+          transform: translate3d(0, 0, 0) scale(0.75);
+          opacity: 0;
+        }
+        18%,
+        72% {
+          opacity: 0.72;
+        }
+        100% {
+          transform: translate3d(var(--drift), -112vh, 0) scale(1.18);
+          opacity: 0;
+        }
+      }
+      @keyframes pet-bob {
+        from {
+          transform: translateY(0) rotate(-2deg);
+        }
+        to {
+          transform: translateY(-12px) rotate(3deg);
+        }
+      }
+      @keyframes pet-float {
+        from {
+          transform: translateY(0) rotate(4deg);
+        }
+        to {
+          transform: translateY(16px) rotate(-4deg);
+        }
+      }
+      @keyframes light-sway {
+        from {
+          transform: translateX(-1.5%);
+        }
+        to {
+          transform: translateX(2%);
+        }
+      }
+      @keyframes button-float {
+        from {
+          transform: translateY(0);
+        }
+        to {
+          transform: translateY(-5px);
+        }
+      }
+      @keyframes button-glint {
+        0%,
+        28% {
+          left: -90px;
+          opacity: 0;
+        }
+        42% {
+          opacity: 0.72;
+        }
+        72%,
+        100% {
+          left: calc(100% + 50px);
+          opacity: 0;
+        }
+      }
+      @media (max-width: 520px) {
+        .launch {
+          transform: translateY(22px);
+          gap: 11px;
+        }
+        .hook-row {
+          grid-template-columns: 1fr;
+          width: min(380px, 100%);
+        }
+        .hook {
+          min-height: 58px;
+          display: grid;
+          grid-template-columns: 42px 1fr;
+          column-gap: 8px;
+          align-items: center;
+          text-align: left;
+          padding: 8px 11px;
+        }
+        .mark {
+          margin: 0;
+        }
+        .pet {
+          width: min(82px, 22vw);
+        }
+        .pet.fire {
+          bottom: max(46px, env(safe-area-inset-bottom));
+        }
+      }
+      @media (max-height: 520px) and (orientation: landscape) {
+        .page {
+          place-items: center end;
+          padding-left: calc(env(safe-area-inset-left) + 28px);
+          padding-right: calc(env(safe-area-inset-right) + 28px);
+        }
+        .launch {
+          width: min(520px, 58vw);
+          transform: translateY(6px);
+          gap: 8px;
+        }
+        h1 {
+          font-size: clamp(38px, 8vw, 58px);
+        }
+        .hook-row {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 7px;
+        }
+        .hook {
+          min-height: 62px;
+          padding: 8px 5px;
+        }
+        .mark {
+          width: 26px;
+          height: 26px;
+          margin-bottom: 2px;
+        }
+        .enter {
+          padding: 11px 18px 10px;
+        }
+        .route {
+          display: none;
+        }
+        .pet.fire {
+          left: 12%;
+          bottom: 36px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <button class="fullscreen" type="button" id="fullscreen-button" aria-label="进入全屏">
+      全屏
+    </button>
+    <main class="page">
+      <i class="bubble" style="--x: 12%; --size: 14px; --duration: 8s; --delay: -1s; --drift: 24px"></i>
+      <i class="bubble" style="--x: 28%; --size: 9px; --duration: 7s; --delay: -4s; --drift: -18px"></i>
+      <i class="bubble" style="--x: 49%; --size: 18px; --duration: 9s; --delay: -2s; --drift: 14px"></i>
+      <i class="bubble" style="--x: 72%; --size: 11px; --duration: 7.5s; --delay: -5s; --drift: -24px"></i>
+      <i class="bubble" style="--x: 88%; --size: 16px; --duration: 8.6s; --delay: -3s; --drift: 18px"></i>
+      <div class="pet fire" aria-hidden="true"></div>
+      <div class="pet wing" aria-hidden="true"></div>
+      <section class="launch" aria-label="海宝彩虹城手机入口">
+        <p class="kicker">今日彩虹城开放中</p>
+        <h1>海宝彩虹城</h1>
+        <div class="hook-row" aria-hidden="true">
+          <div class="hook" style="--accent: #ffd93d">
+            <div class="mark"></div>
+            <div>
+              <strong>签到大奖</strong>
+              <span>第三天解锁VIP</span>
+            </div>
+          </div>
+          <div class="hook" style="--accent: #67d8ff">
+            <div class="mark"></div>
+            <div>
+              <strong>精灵冒险</strong>
+              <span>捕捉 进化 对战</span>
+            </div>
+          </div>
+          <div class="hook" style="--accent: #ff8fcb">
+            <div class="mark"></div>
+            <div>
+              <strong>限时活动</strong>
+              <span>任务信物与稀有奖励</span>
+            </div>
+          </div>
+        </div>
+        <button class="enter" type="button" id="enter-game">
+          立即入城
+          <small>建议横屏，存档会保存在当前浏览器</small>
+        </button>
+        <div class="route" aria-hidden="true">
+          <span>领签到</span>
+          <span>逛地图</span>
+          <span>抓精灵</span>
+          <span>打道馆</span>
+          <span>回家园</span>
+        </div>
+      </section>
+    </main>
+    <script>
+      (() => {
+        const enter = document.getElementById('enter-game');
+        const fullscreen = document.getElementById('fullscreen-button');
+        const gameEntryUrl = '/?v=premium-map-redraw-v2-20260605';
+        let immersiveMode = false;
+
+        const isControl = (target) =>
+          target instanceof Node &&
+          ((enter && enter.contains(target)) || (fullscreen && fullscreen.contains(target)));
+        const stopBrowserGesture = (event) => {
+          if (isControl(event.target)) return;
+          event.preventDefault();
+        };
+        const suppressSelection = () => {
+          const selection = window.getSelection?.();
+          if (selection && selection.rangeCount > 0) selection.removeAllRanges();
+        };
+        const lockViewport = () => {
+          window.scrollTo(0, 1);
+          document.body.scrollTop = 0;
+          document.documentElement.scrollTop = 0;
+          suppressSelection();
+        };
+        const updateFullscreenButton = () => {
+          const active = document.fullscreenElement !== null || immersiveMode;
+          fullscreen.textContent = active ? '已全屏' : '全屏';
+          fullscreen.setAttribute('aria-label', active ? '已进入全屏' : '进入全屏');
+        };
+        const requestImmersiveMode = async () => {
+          immersiveMode = true;
+          try {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+              await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+            }
+          } catch {
+            // Mobile browsers may reject real fullscreen; the fixed viewport still blocks page chrome gestures.
+          }
+          lockViewport();
+          updateFullscreenButton();
+        };
+
+        document.addEventListener('contextmenu', stopBrowserGesture, { capture: true });
+        document.addEventListener('selectstart', stopBrowserGesture, { capture: true });
+        document.addEventListener('selectionchange', suppressSelection);
+        document.addEventListener('dragstart', stopBrowserGesture, { capture: true });
+        document.addEventListener('dblclick', stopBrowserGesture, { passive: false });
+        document.addEventListener('gesturestart', stopBrowserGesture, { passive: false });
+        document.addEventListener('gesturechange', stopBrowserGesture, { passive: false });
+        document.addEventListener('gestureend', stopBrowserGesture, { passive: false });
+        document.addEventListener(
+          'touchstart',
+          (event) => {
+            if (isControl(event.target)) return;
+            if (event.touches.length > 1) event.preventDefault();
+          },
+          { passive: false, capture: true },
+        );
+        document.addEventListener(
+          'touchmove',
+          (event) => {
+            if (!isControl(event.target)) event.preventDefault();
+          },
+          { passive: false },
+        );
+        fullscreen.addEventListener('click', requestImmersiveMode);
+        enter.addEventListener('click', async () => {
+          await requestImmersiveMode();
+          window.location.href = gameEntryUrl;
+        });
+        document.addEventListener('fullscreenchange', updateFullscreenButton);
+        window.addEventListener('orientationchange', () => setTimeout(lockViewport, 250));
+        window.addEventListener('resize', () => setTimeout(lockViewport, 100));
+        window.addEventListener('blur', suppressSelection);
+        window.addEventListener('pageshow', lockViewport);
+        lockViewport();
+        updateFullscreenButton();
+      })();
+    </script>
+  </body>
+</html>

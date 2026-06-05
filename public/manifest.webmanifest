@@ -1,0 +1,19 @@
+{
+  "name": "海宝彩虹城",
+  "short_name": "彩虹城",
+  "description": "手机也能玩的海宝彩虹城单机版。",
+  "start_url": "/share.html",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#87ceeb",
+  "theme_color": "#56c7e8",
+  "icons": [
+    {
+      "src": "/haibao-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

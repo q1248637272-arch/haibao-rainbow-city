@@ -1,0 +1,36 @@
+{
+  "name": "haibao-rainbow-city",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "《海宝彩虹城》精神续作 MVP（Phaser 3 + TypeScript + Vite）",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:raw && npm run prune:dist",
+    "build:raw": "tsc --noEmit && vite build",
+    "prune:dist": "node tools/prune-dist-assets.mjs",
+    "clean:abandoned": "node tools/clean-abandoned-data.mjs",
+    "clean:abandoned:dry-run": "node tools/clean-abandoned-data.mjs --dry-run",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.{ts,json}\" \"tests/**/*.ts\""
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.6.2",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^6.4.2",
+    "vitest": "^2.1.9"
+  }
+}

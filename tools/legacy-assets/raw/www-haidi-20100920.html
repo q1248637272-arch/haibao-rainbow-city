@@ -1,0 +1,522 @@
+﻿<!---->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="google-site-verification" content="uLZYpTBn5wJelfAcndBaa8HEkPBChGDev4yV-m4ixWQ" />
+<title>彩虹城 -点亮彩虹 魔幻变身</title>
+<meta name="description" content="彩虹城（www.haidi001.com）又名“海宝彩虹城”，是上海酷噜网络科技有限公司针对10-15岁青少年儿童群体开发的一款虚拟游戏社区；彩虹城以2010年上海世博会动画片《海宝来了》为故事架构，集合了趣味的魔幻变身、魔法卡牌对战、12星座玩偶及人鱼天使成长、精灵朵朵养成、领地农场种植，是一款真正绿色健康的互动娱乐产品；">
+<meta name="keywords" content="彩虹城，海宝彩虹城，彩虹城游戏，彩虹城小游戏，彩虹城单机游戏，彩虹城攻略，彩虹城秘籍，彩虹城下载，彩虹城官方网站"><meta content="all" name="robots" />
+<meta content="all" name="robots" />
+<style>
+
+body{
+text-align:center;
+margin:0 auto;
+margin-top:0px;
+border:0px none;
+background-color:#FFFFFF;
+}
+#main{
+margin:auto;
+z-index:1;
+}
+
+#playground{
+margin:1px;
+}
+
+#middle{
+margin-top:30px;
+margin-left:auto;
+margin-right:auto;
+text-align:center;
+}
+#bottom{
+
+width:100%;
+background:url(http://play.haidi001.com/images/cn/bann_bg.jpg) repeat-x bottom;
+padding-top:30px;
+padding-bottom:20px;
+}
+#b1{
+padding:5px;
+font-size:12px;
+font-weight:bold;
+color: #000;
+}
+#b2{
+font-size:12px;
+color: #4D4D4D;
+}
+#link_line{
+margin-top:25px;
+padding:10px;
+text-align:center;
+}
+
+.a1 a:link { color: #347E7D; text-decoration: underline;font-size:16px;}
+.a1 a:visited { color: #347E7D; text-decoration: underline; font-size:16px;}
+.a1 a:hover { color: #347E7D; text-decoration: none; font-size:16px;}
+.a1 a:active { color: #347E7D; text-decoration: none; font-size:16px;}
+
+.a2 a:link { color: #6C441C; text-decoration: underline;font-size:16px;}
+.a2 a:visited { color: #6C441C; text-decoration: underline; font-size:16px;}
+.a2 a:hover { color: #6C441C; text-decoration: none; font-size:16px;}
+.a2 a:active { color: #6C441C; text-decoration: none; font-size:16px;}
+
+.a3 a:link { color: #792872; text-decoration: underline;font-size:16px;}
+.a3 a:visited { color: #792872; text-decoration: underline; font-size:16px;}
+.a3 a:hover { color: #792872; text-decoration: none; font-size:16px;}
+.a3 a:active { color: #792872; text-decoration: none; font-size:16px;}
+
+.a4 a:link { color: #828D14; text-decoration: none;font-size:16px;}
+.a4 a:visited { color: #828D14; text-decoration: none; font-size:16px;}
+.a4 a:hover { color: #828D14; text-decoration: underline; font-size:16px;}
+.a4 a:active { color: #828D14; text-decoration: underline; font-size:16px;}
+
+
+.ss a:link { color: #828D14; text-decoration: none;font-size:12px;}
+.ss a:visited { color: #828D14; text-decoration: none; font-size:12px;}
+.ss a:hover { color: #828D14; text-decoration: underline; font-size:12px;}
+.ss a:active { color: #828D14; text-decoration: underline; font-size:12px;}
+
+#b1 a:link { color: #000; text-decoration: underline;}
+#b1 a:visited { color: #000; text-decoration: underline;}
+#b1 a:hover { color: #000; text-decoration: none;}
+#b1 a:active { color: #000; text-decoration: none;}
+
+#b3 a:link { color: #000; text-decoration: none;}
+#b3 a:visited { color: #000; text-decoration: none;}
+#b3 a:hover { color: #000; text-decoration: none;}
+#b3 a:active { color: #000; text-decoration: none;}
+
+a:link { color: #fff; text-decoration: underline;}
+a:visited { color: #fff; text-decoration: underline;}
+a:hover { color: #fff; text-decoration: none;}
+a:active { color: #fff; text-decoration: none;}
+
+.ss{
+display:none;
+color: #fff;
+}
+.style2 {font-size: 9px;}
+</style>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script> 
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js" type="text/javascript"></script> 
+
+<script language="javascript" type="text/javascript">
+
+		
+$(function(){
+	$("div.ss").hide();
+	$("div.ss:first").show();
+	$("div.ll").click(function(){
+		var obj = $("div.ss:visible");
+		if (obj.prev().hasClass("ss"))
+		{
+		obj.hide();
+		obj.prev().show("slide", { direction: "left" }, 0);
+		}else{
+		obj.hide();
+		$("div.ss:last").show("slide", { direction: "left" }, 0);
+		}
+	});
+	$("div.rr").click(function(){
+	
+		var obj = $("div.ss:visible");
+		if (obj.next().hasClass("ss"))
+		{
+		obj.hide();
+		obj.next().show("slide", { direction: "right" }, 0);
+		}else{
+		obj.hide();
+		$("div.ss:first").show("slide", { direction: "right" }, 0);
+		}
+	});
+	
+});		
+</script>
+
+<script src="/swfobject.js" language="javascript"></script>
+<script language="javascript" type="text/javascript">
+
+		document.write("<script src='http://passport.qoolu.com/ads/CoreLibrary.js'><\/script>"); 
+		document.write("<script src='http://passport.qoolu.com/ads/Script.XMLHTTP.js'><\/script>"); 
+		
+		function load()
+        {
+        //document.getElementById("swf_div").innerHTML= "<img src='http://play.haidi001.com/images/cn/loading.gif'>";
+
+		swfobject.flashvars = {};
+		swfobject.params = {allowScriptAccess:"always",allowFullScreen:"true",wmode:"transparent"};
+		swfobject.attributes = {};
+		
+		var playerVersion = swfobject.getFlashPlayerVersion();
+		//var output = "You have Flash player " + playerVersion.major + "." + playerVersion.minor + "." + playerVersion.release + " installed";
+			
+		//if (swfobject.hasFlashPlayerVersion("10.0.45") && !swfobject.hasFlashPlayerVersion("10.1.82"))
+		if (playerVersion.major == 10 && playerVersion.minor == 0 && playerVersion.release == 45)
+		{
+			alert("您当前使用的Flash Player 版本偏低，为了更好的运行彩虹城，我们将升级您的Flash Player。");
+			swfobject.embedSWF("http://play.haidi001.com/swf/Main.swf?201009202016&itp=&doma=http://play.haidi001.com/", "swf_div", "960", "560", "10.1.82","http://play.haidi001.com/swf/expressInstall.swf",swfobject.flashvars, swfobject.params, swfobject.attributes);
+		}
+		else
+		{
+			swfobject.embedSWF("http://play.haidi001.com/swf/Main.swf?201009202016&itp=&doma=http://play.haidi001.com/", "swf_div", "960", "560", "9.0.0","http://play.haidi001.com/swf/expressInstall.swf",swfobject.flashvars, swfobject.params, swfobject.attributes);
+		}
+		swfobject.embedSWF("http://play.haidi001.com/images/cn/logo.swf", "logo_div", "137", "85", "9.0.0","",{}, {wmode:"transparent"},{});
+		swfobject.embedSWF("http://play.haidi001.com/images/cn/g_icon.swf", "g_icon_div", "45", "35", "9.0.0","",{}, {wmode:"transparent"},{});
+		
+		doInitADs();
+		
+		}function clubfishReload(){window.location.reload();}
+</script>
+<script language=JavaScript>  function OpenFavorite(){    window.external.AddFavorite('http://www.haidi001.com','海底彩虹城')}  </script>  
+</head>
+
+<body onresize="resize_box()" onload="load()" >
+<!-- onunload=OpenFavorite()-->
+<div id="main">
+<div style="height:15px; overflow:hidden;">
+ <table border="0" cellspacing="0" cellpadding="0" align="center" width="962">
+      <tr><td align="right">
+      <a href="javascript:OpenMessageBox('http://passport.qoolu.com/pay/game_usekuka.php', '', 'kuka');"><img src="http://play.haidi001.com/images/cn/kukuka.jpg" border="0" /></a>
+      <img src="http://play.haidi001.com/images/cn/fgf.jpg" />
+      <a href="http://passport.qoolu.com/newpay/salemap.php" target="_blank"><img src="http://play.haidi001.com/images/cn/salep.jpg" border="0" /></a>
+      </td></tr></table>
+   </div>
+    <table border="0" cellspacing="0" cellpadding="0" align="center">
+      <tr>
+        <td rowspan="3"><img src="http://play.haidi001.com/images/cn/main_left.jpg" width="12" height="588" /></td>
+        <td><img src="http://play.haidi001.com/images/cn/main_top.jpg" width="962" height="12" /></td>
+        <td rowspan="3"><img src="http://play.haidi001.com/images/cn/main_right.jpg" width="12" height="588"/></td>
+      </tr>
+      <tr>
+        <td height="562">
+        <div id="playground">
+        	<div id="swf_div" style=" text-align:center;">
+            		请稍候，正在进入彩虹城...
+            </div>
+        </div>
+        </td>
+      </tr>
+      <tr>
+        <td><img src="http://play.haidi001.com/images/cn/main_but.jpg" /></td>
+      </tr>
+    </table>
+</div>
+<div id="middle">
+<table border="0" cellspacing="0" cellpadding="0" align="center">
+  <tr align="center">
+    <td><a href="javascript:OpenMessageBox('./report.html');"><img src="http://play.haidi001.com/images/cn/btn_1.jpg" border="0" /></a></td>
+    <td width="15"></td>
+    <td><a href="http://blog.haidi001.com" target="_blank"><img src="http://play.haidi001.com/images/cn/btn_2.jpg" border="0" /></a></td>
+    <td width="15"></td>
+    <td><a href="http://bbs.haidi001.com" target="_blank"><img src="http://play.haidi001.com/images/cn/btn_3.jpg" border="0" /></a></td>
+    <td width="15"></td>
+    <td><a href="javascript:OpenMessageBox('http://passport.qoolu.com/pay/game_usekuka.php', '', 'kuka');"><img src="http://play.haidi001.com/images/cn/btn_4.jpg" border="0" /></a></td>
+    <td width="15"></td>
+    <td><a href="http://passport.qoolu.com/newpay/salemap.php" target="_blank"><img src="http://play.haidi001.com/images/cn/btn_5.jpg" border="0" /></a></td>
+    <td width="15"></td>
+    <td><a href="http://www.imaorong.com" target="_blank"><img src="http://play.haidi001.com/images/cn/btn_6.jpg" border="0" /></a></td>
+  </tr>
+</table>
+<br />
+</div>
+
+<table border="0" cellspacing="0" cellpadding="0" align="center">
+  <tr>
+    <td rowspan="3"><img src="http://play.haidi001.com/images/cn/baikuang_ll.jpg" border="0" /></td>
+    <td style="background:url(http://play.haidi001.com/images/cn/baikuang_tt.jpg) repeat-x top; height:3px;"></td>
+    <td rowspan="3" align="right"><img src="http://play.haidi001.com/images/cn/baikuang_rr.jpg" border="0" /></td>
+  </tr>
+  <tr>
+    <td>
+    
+<table><tr>
+	<td height="50"><div class="ll"><img src="http://play.haidi001.com/images/cn/partner_left.jpg" /></div></td>
+	<td ><div class="ss"><table><tr align="center" valign="middle"><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.yx007.com"><img src="http://play.haidi001.com/images/cn/focus/1279694133" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.yx007.com">007小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.joqoo.com"><img src="http://play.haidi001.com/images/cn/focus/1273719694" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.joqoo.com">桌酷小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://xyx.duowan.com"><img src="http://play.haidi001.com/images/cn/focus/1273719838" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://xyx.duowan.com">多玩彩虹城</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://news.4399.com/haibaocaihongcheng/"><img src="http://play.haidi001.com/images/cn/focus/1273646396" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://news.4399.com/haibaocaihongcheng/">彩虹城攻略</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://flash.178.com/s/haidi001.html"><img src="http://play.haidi001.com/images/cn/focus/1273719106" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://flash.178.com/s/haidi001.html">178彩虹城</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.66guo.com"><img src="http://play.haidi001.com/images/cn/focus/1283137913" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.66guo.com">乐乐国</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.qk100.com/top/tetui.html?hd"><img src="http://play.haidi001.com/images/cn/focus/1275646374" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.qk100.com/top/tetui.html?hd">奥特曼打怪兽</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://games.sina.com.cn/casual/"><img src="http://play.haidi001.com/images/cn/focus/1273719868" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://games.sina.com.cn/casual/">新浪彩虹城</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.leyaa.com "><img src="http://play.haidi001.com/images/cn/focus/1282126394" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.leyaa.com ">双人小游戏</a></div></td></tr></table></div><div class="ss"><table><tr align="center" valign="middle"><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.pcgames.com.cn/flashgames/"><img src="http://play.haidi001.com/images/cn/focus/1273719467" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.pcgames.com.cn/flashgames/">太平洋小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.265g.com/"><img src="http://play.haidi001.com/images/cn/focus/1273718997" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.265g.com/">265g资讯</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.i8610.com/"><img src="http://play.haidi001.com/images/cn/focus/1273718647" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.i8610.com/">国都小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://web.pcgames.com.cn/"><img src="http://play.haidi001.com/images/cn/focus/1273719224" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://web.pcgames.com.cn/">太平洋资讯</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.5068.com/z/haibao/"><img src="http://play.haidi001.com/images/cn/focus/1273719180" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.5068.com/z/haibao/">海宝来了</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://games.sina.com.cn/casual/"><img src="http://play.haidi001.com/images/cn/focus/1273719370" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://games.sina.com.cn/casual/">腾讯小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://flash.17173.com"><img src="http://play.haidi001.com/images/cn/focus/1273719395" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://flash.17173.com">17173小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.2144.cn"><img src="http://play.haidi001.com/images/cn/focus/1275383444" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.2144.cn">2144小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://game.163.com"><img src="http://play.haidi001.com/images/cn/focus/1273719556" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://game.163.com">网易资讯</a></div></td></tr></table></div><div class="ss"><table><tr align="center" valign="middle"><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.duniu.com"><img src="http://play.haidi001.com/images/cn/focus/1273719588" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.duniu.com">嘟牛游戏网</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.ux98.com"><img src="http://play.haidi001.com/images/cn/focus/1274781983" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.ux98.com">游戏酒吧</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.f96.net"><img src="http://play.haidi001.com/images/cn/focus/1275292556" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.f96.net">F96小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.99xyx.com"><img src="http://play.haidi001.com/images/cn/focus/1275286967" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.99xyx.com">99小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href=" http://www.345.net.cn "><img src="http://play.haidi001.com/images/cn/focus/1275289127" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href=" http://www.345.net.cn ">美眉小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.6612.cn"><img src="http://play.haidi001.com/images/cn/focus/1276421173" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.6612.cn">6612小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.yphao.com"><img src="http://play.haidi001.com/images/cn/focus/1276421810" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.yphao.com">双人小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.51wing.cn"><img src="http://play.haidi001.com/images/cn/focus/1276421886" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.51wing.cn">免费小游戏</a></div></td><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.52wyx.net"><img src="http://play.haidi001.com/images/cn/focus/1276422274" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.52wyx.net">52彩虹城</a></div></td></tr></table></div><div class="ss"><table><tr align="center" valign="middle"><td width=78 height=50 valign="middle" style="line-height:22px"><a target="_blank" href="http://www.this5.cn"><img src="http://play.haidi001.com/images/cn/focus/1279092056" border=0 style="margin-top:0"></a><br>
+	    <div id="b3"><a target="_blank" href="http://www.this5.cn">小玩国</a></div></td></tr></table></div>	</td>
+	<td><div class="rr"><img src="http://play.haidi001.com/images/cn/partner_right.jpg" /></div></td>
+</tr></table>
+    
+    </td>
+  </tr>
+  <tr>
+    <td style="background:url(http://play.haidi001.com/images/cn/baikuang_bb.jpg) repeat-x bottom; height:2px;"></td>
+  </tr>
+</table>
+
+
+<div id="bottom">
+<table width="990" border="0" cellspacing="0" cellpadding="0" align="center">
+  <tr>
+ 	<td width="15%" align="right">
+     <div title="酷噜网络" onclick="location.href='http://www.qoolu.com'" ><div id="logo_div"></div></div></td>
+    <td align="center">
+     <div id="b1">
+     <a href='about.html'>关于酷噜</a> | 
+     <a href='connectus.html'>合作联系</a> | 
+    <a href='http://leg.club-fish.com/' target=_blank>联盟推广</a> | 
+     <a href='parents.html'>父母需知</a> | 
+     <a href='#'>游戏帮助</a> | 
+     <a href='brandstory.html'>品牌故事</a> | 
+     <a href='about.html#wish'>酷噜愿景</a> | <a href="partner.html">合作伙伴</a> | <a href="#" onClick="OpenFavorite();">收藏本站</a>
+	</div>
+     <script src="http://s35.cnzz.com/stat.php?id=1932462&web_id=1932462" language="JavaScript"></script>
+     <div id="b2">
+     2010年世博会动画片《海宝来了》唯一青少年儿童网络虚拟社区合作伙伴&nbsp;&nbsp;沪ICP备08005346号&nbsp;&nbsp;服务热线：021-61806550<br>
+     Copyright©2009-2010 Shanghai Qoolu Networks Technology Co., Ltd. All Rights Reserved.<a href='#' onclick="OpenMessageBox('http://passport.qoolu.com/pay/game_paykb.php?secStr=BmwAN1NlUD8IPAgoV2dSeVRmAToCMApkUjNQewc');" title="VIP">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a>
+     </div></td>
+    <td width="15%" align="center"><div title="绿色宣言"><div id="g_icon_div"></div></div></td>
+  </tr>
+</table>
+</div>
+
+<script type="text/javascript"> 
+ 
+		var box_open = 0;
+			
+		var msgw=882;//消息框宽度 
+		var msgh=471;//消息框高度 
+		var msg_marg_top=45;
+		var closeBtnw=35;
+		var closeBtnh=35;
+        function resize_box()
+        {
+        	if(get_obj('msgDiv'))
+        	{
+    			var width = (document.body.scrollWidth - msgw) / 2;
+    			get_obj('msgDiv').style.left = width + 'px';
+    			var width = (width + (msgw-closeBtnw*1.3));//(document.body.scrollWidth - 910) / 2;
+    			get_obj('closeDiv').style.left = width  + 'px';
+        	}
+        	
+        	doResizeAds();
+        }
+        var isIE = document.all ? true : false;  //判断是否是IE
+ 		
+    function get_obj(id) 
+    {
+    	return document.getElementById(id);
+    }
+    
+	function flashAlertMsg(str){
+		var op = arguments[1] ? arguments[1] : '';
+		var fromSite = arguments[2] ? arguments[2] : '';
+		var url='';
+		if(op == 'kb'){
+			url = "http://passport.qoolu.com/pay/game_paykb.php?secStr="+str+"&fromSite=" + fromSite;
+		}
+		
+		if(op == 'vip' ){
+			if (fromSite == '4399' || fromSite == '360')
+			{
+				url = "http://passport.qoolu.com/pay/game_payvip.php?secStr="+str+"&fromSite=" + fromSite;
+			}else{
+				url = "http://passport.qoolu.com/pay/game_pay.php?secStr="+str+"&fromSite=" + fromSite;
+			}
+		}
+		
+		if(op == 'box'){
+			url = "http://passport.qoolu.com/pay/set_pass.php?action=over&secStr="+str+"&fromSite=" + fromSite;
+		}
+
+		
+		if(op == 'kuka'){
+			url = "http://passport.qoolu.com/pay/game_paykb.php?secStr="+str+"&fromSite=" + fromSite + "&tab=kuka";
+		}
+		
+		// for 4399 and 7k7k parse.
+		if(op == 'dodo'){
+			if (fromSite == '4399' || fromSite == '7k7k' || fromSite == '360')
+			{
+				url = "http://passport.qoolu.com/pay/game_payvip.php?secStr="+str+"&fromSite=" + fromSite;
+			}else{
+				url = "http://passport.qoolu.com/pay/game_pay.php?secStr="+str+"&fromSite=" + fromSite;
+			}
+		}
+
+		OpenMessageBox(url, fromSite, op);
+
+	}
+	
+	function doBuyToy(str){
+		var tid = arguments[0] ? arguments[0] : '';
+		var secStr = arguments[1] ? arguments[1] : '';
+		var fromSite = arguments[2] ? arguments[2] : '';
+		var url='';
+		
+		// for 4399 and 7k7k parse.
+		if (fromSite == '4399' || fromSite == '7k7k' || fromSite == '360'){
+			url = 'http://shop59333801.taobao.com';
+			window.open(url);
+		}else{
+		
+			url = 'http://www.imaorong.com/paytoy.php?tid='+tid+'&secStr='+secStr+'&fromSite=' + fromSite;
+			op = 'toy';
+			OpenMessageBox(url, fromSite, op);
+		}
+ 
+	}
+	
+	function doWorkGetGold(str){
+		var areaid = arguments[0] ? arguments[0] : '';
+		var secStr = arguments[1] ? arguments[1] : '';
+		var fromSite = arguments[2] ? arguments[2] : '';
+		var url='';
+		
+		url = 'http://passport.qoolu.com/work/show.php?areaid='+areaid+'&secStr='+secStr+'&fromSite=' + fromSite;
+		op = 'work';
+		OpenMessageBox(url, fromSite, op);
+ 
+	}
+	
+	function OpenMessageBox(url, fromSite, op)
+	{	
+		CloseBox();
+		box_open = 0;
+		var sWidth,sHeight; 
+		sWidth=document.body.offsetWidth;  
+		sHeight=document.body.offsetHeight;
+		
+		if (((op == 'vip') || (op == 'kb')) && ( (fromSite == '4399') || (fromSite == '7k7k') || (fromSite == '360') )) {
+			msgw=681;//消息框宽度 
+			msgh=410;//消息框高度 
+		}else if( op == 'toy' ){
+			msgw=920;//消息框宽度 
+			msgh=490;//消息框高度 
+		}else{
+			msgw=882;//消息框宽度 
+			msgh=471;//消息框高度 
+		}
+		
+		if ((op == 'vip') && ( (fromSite == '4399') || (fromSite == '360') )) {
+			msgw=882;//消息框宽度 
+			msgh=471;//消息框高度 
+		}
+		
+		if ( op == 'work' ){
+			msg_marg_top=115;
+			closeBtnh=105;
+			closeBtnh=105;
+		}else{
+			msg_marg_top=45;
+			closeBtnh=35;
+			closeBtnh=35;
+		}
+		
+		var width = (document.body.scrollWidth - msgw) / 2;
+		var msgObj=document.createElement("div") 
+		msgObj.setAttribute("id","msgDiv"); 
+		msgObj.setAttribute("name","msgDiv"); 
+		msgObj.setAttribute("align","center");
+		msgObj.style.position="absolute";
+		msgObj.style.left = width + 'px';
+		msgObj.style.top = msg_marg_top + "px"; 
+		msgObj.style.width = msgw + 'px'; 
+		msgObj.style.height = msgh + 'px'; 
+		msgObj.style.zIndex = 10001;
+		msgObj.style.visibility = 'hidden';
+		msgObj.innerHTML='<iframe id="msg_iframe" src="'+url+'" frameborder=0 scrolling="no"></iframe>';
+		document.body.appendChild(msgObj);
+		
+		var loadObj=document.createElement("div") 
+		loadObj.setAttribute("id","loadingDiv"); 
+		loadObj.setAttribute("name","loadingDiv"); 
+		loadObj.setAttribute("align","center");
+		loadObj.style.position="absolute";
+		loadObj.style.left = width + 'px';
+		loadObj.style.top = msg_marg_top + 120 + "px"; 
+		loadObj.style.width = msgw + 'px'; 
+		loadObj.style.height = msgh + 'px'; 
+		loadObj.style.zIndex = 10003;
+		loadObj.style.display = 'block';
+		loadObj.innerHTML='<img src="./images/loading.gif" width="200">';
+		document.body.appendChild(loadObj);
+		
+		var closeObj=document.createElement("div");
+		closeObj.setAttribute("id","closeDiv"); 
+		closeObj.style.left = (width + (msgw-closeBtnw*1.3)) + 'px';
+		closeObj.style.top = (closeBtnh+20) + 'px'; 
+		closeObj.setAttribute("valign","top");
+		closeObj.style.position="absolute";
+		closeObj.style.zIndex = 10002;
+		closeObj.style.display = 'none';
+		closeObj.innerHTML='<img onclick="CloseBox();" src="./images/msgCloseBtn_on.jpg" style="cursor:pointer" onmouseover="this.src=\'./images/msgCloseBtn_off.jpg\'" onmouseout="this.src=\'./images/msgCloseBtn_on.jpg\'" />'; 
+		document.body.appendChild(closeObj);
+	  }function CloseBox()
+{
+		var msg_div = get_obj('msgDiv');
+		var close_div = get_obj('closeDiv');
+		var msg_iframe = get_obj('msg_iframe');
+		var loading_div = get_obj('loadingDiv');
+ 
+		if(msg_iframe)
+		{
+			msg_iframe.src = '';
+		}
+		if(msg_div)
+		{
+			if(isIE) msg_div.removeNode(true);
+			else msg_div.parentNode.removeChild(msg_div);
+		}
+		if(close_div)
+		{
+			if(isIE) close_div.removeNode(true);
+			else close_div.parentNode.removeChild(close_div);
+		}
+		if(loading_div)
+		{
+			if(isIE) loading_div.removeNode(true);
+			else loading_div.parentNode.removeChild(loading_div);
+		}
+}
+
+
+
+/*
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-17219122-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+*/
+
+</script>
+</body>
+</html>
+<!---->

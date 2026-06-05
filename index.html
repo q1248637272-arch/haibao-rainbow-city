@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#56c7e8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="海宝彩虹城" />
+    <meta name="description" content="手机也能玩的海宝彩虹城单机版。" />
+    <meta property="og:title" content="海宝彩虹城" />
+    <meta property="og:description" content="进入彩虹城，读取你的命名存档继续冒险。" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:image"
+      content="/assets/legacy/optimized/title/legacy_entry_full_v4_fast.webp"
+    />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>海宝彩虹城</title>
+    <script>
+      (() => {
+        const nav = navigator || {};
+        const matches = (query) => {
+          try {
+            return window.matchMedia?.(query).matches === true;
+          } catch {
+            return false;
+          }
+        };
+        const memory = Number(nav.deviceMemory || 8);
+        const cores = Number(nav.hardwareConcurrency || 8);
+        const mobile =
+          matches('(pointer: coarse)') ||
+          matches('(max-width: 720px)') ||
+          /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent || '');
+        let score = 0;
+        if (memory <= 3) score -= 2;
+        else if (memory <= 4) score -= 1;
+        else if (memory >= 8) score += 1;
+        if (cores <= 4) score -= 1;
+        else if (cores >= 8) score += 1;
+        if (mobile) score -= 1;
+        if (matches('(prefers-reduced-motion: reduce)')) score -= 2;
+        document.documentElement.dataset.performanceTier =
+          score <= -2 ? 'low' : score <= 0 ? 'medium' : 'high';
+      })();
+    </script>
+    <style>
+      html,
+      body,
+      #game {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        min-height: var(--app-height, 100dvh);
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-drag: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-drag: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      body {
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(circle at 50% 50%, rgba(120, 221, 255, 0.32), rgba(7, 61, 102, 0.72)),
+          #071f3a;
+        font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+      body::before {
+        position: fixed;
+        inset: -24px;
+        z-index: 0;
+        background:
+          linear-gradient(180deg, rgba(7, 67, 118, 0.18), rgba(4, 24, 55, 0.34)),
+          url('/assets/legacy/optimized/maps/legacy_city_center_3d_fast.webp') center / cover
+            no-repeat,
+          #071f3a;
+        content: '';
+        filter: blur(14px) saturate(1.08);
+        transform: scale(1.06);
+      }
+      body::after {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background:
+          radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12), transparent 48%),
+          linear-gradient(90deg, rgba(2, 19, 50, 0.28), transparent 22% 78%, rgba(2, 19, 50, 0.28));
+        content: '';
+        pointer-events: none;
+      }
+      html[data-performance-tier='low'] body::before {
+        filter: none;
+        transform: none;
+      }
+      html[data-performance-tier='low'] .html-loading-card {
+        backdrop-filter: none;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+      }
+      html[data-performance-tier='low'] #asset-progress-orb {
+        box-shadow: none;
+      }
+      #game {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: var(--app-height, 100dvh);
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+      }
+      #game canvas {
+        position: relative;
+        z-index: 1;
+        display: block;
+        max-width: 100vw;
+        max-height: var(--app-height, 100dvh);
+        object-fit: contain;
+      }
+      html.immersive-mode,
+      html.immersive-mode body,
+      html.immersive-mode #game {
+        width: 100vw;
+        height: var(--app-height, 100dvh);
+        background: transparent;
+      }
+      #html-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: #fff;
+        background:
+          linear-gradient(180deg, rgba(113, 222, 255, 0.62), rgba(5, 55, 111, 0.82)),
+          url('/assets/legacy/optimized/title/legacy_entry_full_v4_fast.webp') center / cover
+            no-repeat,
+          #0b70b7;
+        text-align: center;
+        transition: opacity 280ms ease;
+      }
+      #html-loading.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .html-loading-card {
+        width: min(460px, calc(100vw - 36px));
+        padding: 18px 20px 20px;
+        border: 2px solid rgba(255, 255, 255, 0.76);
+        border-radius: 8px;
+        background: rgba(4, 43, 87, 0.46);
+        box-shadow: 0 18px 46px rgba(0, 0, 0, 0.32);
+        backdrop-filter: blur(5px);
+      }
+      .html-loading-title {
+        margin: 0 0 12px;
+        font-size: clamp(30px, 7vw, 46px);
+        line-height: 1;
+        text-shadow: 0 3px 12px rgba(3, 42, 88, 0.68);
+      }
+      .html-loading-track {
+        position: relative;
+        height: 16px;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.74);
+        border-radius: 999px;
+        background: rgba(1, 24, 52, 0.42);
+      }
+      .html-loading-fill {
+        position: absolute;
+        inset: 2px auto 2px 2px;
+        width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #fff59c, #ff9f2f, #fff59c);
+        transition: width 120ms linear;
+      }
+      .html-loading-note {
+        margin-top: 10px;
+        font-size: 14px;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+      }
+      .html-loading-percent {
+        margin-top: 8px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #fff4a8;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.52);
+      }
+      #rotate-tip {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+        color: #ffffff;
+        text-align: center;
+        pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(9, 48, 86, 0.58), rgba(7, 73, 105, 0.28)),
+          rgba(30, 170, 218, 0.22);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        font-size: 18px;
+        line-height: 1.7;
+      }
+      #rotate-tip strong {
+        display: block;
+        font-size: 24px;
+        margin-bottom: 8px;
+      }
+      @media (orientation: portrait) and (max-width: 900px) {
+        #rotate-tip {
+          display: none;
+        }
+      }
+      #fullscreen-button {
+        position: fixed;
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        z-index: 30;
+        min-width: 92px;
+        border: 2px solid rgba(255, 255, 255, 0.86);
+        border-radius: 8px;
+        padding: 9px 12px;
+        background: linear-gradient(180deg, rgba(255, 211, 90, 0.98), rgba(255, 143, 47, 0.98));
+        color: #713500;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+        font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: 0;
+        touch-action: manipulation;
+      }
+      #fullscreen-button.is-active {
+        opacity: 0.42;
+      }
+      html.immersive-mode #fullscreen-button {
+        opacity: 0.36;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        #fullscreen-button {
+          opacity: 0.78;
+        }
+        #fullscreen-button:hover {
+          opacity: 1;
+        }
+      }
+      @media (min-width: 901px) {
+        #fullscreen-button {
+          bottom: 16px;
+        }
+      }
+      #asset-progress-orb {
+        --asset-progress-angle: 0deg;
+        position: fixed;
+        top: max(14px, env(safe-area-inset-top));
+        right: max(14px, env(safe-area-inset-right));
+        z-index: 42;
+        display: grid;
+        width: 72px;
+        height: 72px;
+        place-items: center;
+        border: 2px solid rgba(255, 255, 255, 0.84);
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 50% 50%, rgba(6, 68, 112, 0.9) 0 49%, transparent 50%),
+          conic-gradient(#fff48a var(--asset-progress-angle), rgba(255, 255, 255, 0.22) 0),
+          radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.82), rgba(56, 191, 245, 0.84) 42%, rgba(5, 77, 132, 0.92));
+        box-shadow:
+          0 9px 24px rgba(0, 25, 58, 0.32),
+          inset 0 3px 12px rgba(255, 255, 255, 0.28);
+        color: #fff9b8;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1;
+        opacity: 0;
+        pointer-events: none;
+        text-shadow: 0 2px 7px rgba(0, 0, 0, 0.55);
+        transform: translateY(-8px) scale(0.92);
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease;
+      }
+      #asset-progress-orb::before {
+        position: absolute;
+        inset: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        border-radius: 50%;
+        content: '';
+      }
+      #asset-progress-orb.is-visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      #asset-progress-orb.is-complete {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.92);
+      }
+      #asset-progress-percent {
+        position: relative;
+        z-index: 1;
+      }
+      @media (max-width: 720px) {
+        #asset-progress-orb {
+          width: 62px;
+          height: 62px;
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <button id="fullscreen-button" type="button" aria-label="进入全屏">全屏</button>
+    <div id="asset-progress-orb" aria-live="polite" aria-label="资源加载进度" aria-hidden="true">
+      <span id="asset-progress-percent">0%</span>
+    </div>
+    <div id="rotate-tip">
+      <div>
+        <strong>横屏体验更好</strong>
+        把手机横过来，就能完整显示彩虹城界面。
+      </div>
+    </div>
+    <div id="html-loading" aria-live="polite">
+      <div class="html-loading-card">
+        <h1 class="html-loading-title">海宝彩虹城</h1>
+        <div class="html-loading-track" aria-hidden="true">
+          <div class="html-loading-fill" id="html-loading-fill"></div>
+        </div>
+        <div class="html-loading-percent" id="html-loading-percent">0%</div>
+        <div class="html-loading-note">正在准备地图与精灵资源...</div>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const game = document.getElementById('game');
+        const button = document.getElementById('fullscreen-button');
+        const root = document.documentElement;
+        let immersiveMode = false;
+        let firstMobileGestureHandled = false;
+
+        const stopBrowserGesture = (event) => {
+          if (event.target === button) return;
+          event.preventDefault();
+        };
+
+        const suppressSelection = () => {
+          const selection = window.getSelection?.();
+          if (selection && selection.rangeCount > 0) selection.removeAllRanges();
+        };
+
+        const isMobileLike = () =>
+          window.matchMedia('(hover: none), (pointer: coarse), (max-width: 900px)').matches;
+
+        const syncViewportSize = () => {
+          const height = window.visualViewport?.height ?? window.innerHeight;
+          root.style.setProperty('--app-height', `${Math.max(320, Math.round(height))}px`);
+        };
+
+        const lockViewport = () => {
+          syncViewportSize();
+          window.scrollTo(0, 1);
+          document.body.scrollTop = 0;
+          document.documentElement.scrollTop = 0;
+          suppressSelection();
+        };
+
+        document.addEventListener('contextmenu', stopBrowserGesture, { capture: true });
+        document.addEventListener('selectstart', stopBrowserGesture, { capture: true });
+        document.addEventListener('selectionchange', suppressSelection);
+        document.addEventListener('dragstart', stopBrowserGesture, { capture: true });
+        document.addEventListener('dblclick', stopBrowserGesture, { passive: false });
+        document.addEventListener('gesturestart', stopBrowserGesture, { passive: false });
+        document.addEventListener('gesturechange', stopBrowserGesture, { passive: false });
+        document.addEventListener('gestureend', stopBrowserGesture, { passive: false });
+        document.addEventListener(
+          'touchstart',
+          (event) => {
+            if (event.target === button) return;
+            if (event.touches.length > 1) event.preventDefault();
+          },
+          { passive: false, capture: true },
+        );
+        document.addEventListener(
+          'touchmove',
+          (event) => {
+            if (event.target !== button) event.preventDefault();
+          },
+          { passive: false },
+        );
+
+        const updateFullscreenButton = () => {
+          const active = document.fullscreenElement !== null || immersiveMode;
+          root.classList.toggle('immersive-mode', active);
+          button.classList.toggle('is-active', active);
+          button.textContent = active ? '已全屏' : '全屏';
+          button.setAttribute('aria-label', active ? '已进入全屏' : '进入全屏');
+        };
+
+        const refreshGameScale = () => {
+          const gameInstance = window.__HAIBAO_GAME__;
+          try {
+            gameInstance?.scale?.refresh?.();
+          } catch {
+            // Scale refresh is best-effort across mobile browsers.
+          }
+        };
+
+        const requestImmersiveMode = async () => {
+          if (document.fullscreenElement) {
+            try {
+              await document.exitFullscreen();
+            } catch {
+              // Browser may reject exit in embedded views.
+            }
+            immersiveMode = false;
+            updateFullscreenButton();
+            return;
+          }
+
+          immersiveMode = true;
+          root.classList.add('immersive-mode');
+          try {
+            const target = game ?? root;
+            if (!document.fullscreenElement && target.requestFullscreen) {
+              await target.requestFullscreen({ navigationUI: 'hide' });
+            }
+          } catch {
+            // Some mobile browsers only allow pseudo fullscreen; CSS still keeps the game immersive.
+          }
+
+          lockViewport();
+          updateFullscreenButton();
+          setTimeout(refreshGameScale, 60);
+          setTimeout(refreshGameScale, 360);
+          setTimeout(refreshGameScale, 900);
+        };
+
+        game?.addEventListener(
+          'pointerup',
+          () => {
+            if (firstMobileGestureHandled || !isMobileLike()) return;
+            firstMobileGestureHandled = true;
+            if (!document.fullscreenElement && !immersiveMode) {
+              void requestImmersiveMode();
+            }
+          },
+          { capture: true },
+        );
+
+        button.addEventListener('click', requestImmersiveMode);
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && immersiveMode) {
+            root.classList.add('immersive-mode');
+          }
+          syncViewportSize();
+          updateFullscreenButton();
+          setTimeout(refreshGameScale, 80);
+          setTimeout(refreshGameScale, 420);
+        });
+        window.addEventListener('orientationchange', () => {
+          setTimeout(lockViewport, 250);
+          setTimeout(refreshGameScale, 320);
+          setTimeout(refreshGameScale, 760);
+        });
+        window.addEventListener('resize', () => {
+          setTimeout(lockViewport, 100);
+          setTimeout(refreshGameScale, 120);
+        });
+        window.visualViewport?.addEventListener('resize', () => {
+          syncViewportSize();
+          setTimeout(refreshGameScale, 80);
+        });
+        window.addEventListener('blur', suppressSelection);
+        window.addEventListener('pageshow', lockViewport);
+        syncViewportSize();
+        updateFullscreenButton();
+      })();
+      (() => {
+        const orb = document.getElementById('asset-progress-orb');
+        const percentLabel = document.getElementById('asset-progress-percent');
+        if (!orb || !percentLabel) return;
+
+        let hideTimer = 0;
+
+        const updateAssetProgress = (progress) => {
+          const clamped = Math.max(0, Math.min(1, Number(progress) || 0));
+          const percent = Math.round(clamped * 100);
+          percentLabel.textContent = `${percent}%`;
+          orb.style.setProperty('--asset-progress-angle', `${Math.round(clamped * 360)}deg`);
+
+          window.clearTimeout(hideTimer);
+          if (clamped >= 1) {
+            orb.classList.add('is-complete');
+            hideTimer = window.setTimeout(() => {
+              orb.classList.remove('is-visible');
+              orb.setAttribute('aria-hidden', 'true');
+            }, 360);
+            return;
+          }
+
+          orb.classList.remove('is-complete');
+          orb.classList.add('is-visible');
+          orb.setAttribute('aria-hidden', 'false');
+        };
+
+        window.addEventListener('haibao:deferred-assets-progress', (event) => {
+          updateAssetProgress(event.detail?.progress);
+        });
+
+        const pollProgress = () => {
+          if (typeof window.__HAIBAO_DEFERRED_ASSET_PROGRESS__ === 'number') {
+            updateAssetProgress(window.__HAIBAO_DEFERRED_ASSET_PROGRESS__);
+          }
+        };
+
+        pollProgress();
+        window.setInterval(pollProgress, 300);
+      })();
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

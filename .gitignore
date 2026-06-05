@@ -1,0 +1,23 @@
+node_modules
+dist
+coverage
+tmp
+output
+logs
+.wrangler
+*.log
+.DS_Store
+.vite
+.vitest
+.env
+.env.local
+*.tsbuildinfo
+tools/__pycache__
+tools/bin/cloudflared.exe
+
+# Audio assets (FEAT-300)
+# 运行时由玩家本地提供合法音频，仓库不打包任何音频文件。
+# AudioManager 在 404 时会静默降级为静音模式。
+public/assets/audio/*.mp3
+public/assets/audio/*.ogg
+public/assets/audio/*.wav
