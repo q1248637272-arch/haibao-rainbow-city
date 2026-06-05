@@ -90,6 +90,12 @@ function Ensure-Repository([string] $Git, [string] $Gh) {
     return $remote
   }
 
+  if (-not $Gh) {
+    Write-Host 'No GitHub remote is configured, and GitHub CLI was not found.'
+    Write-Host 'Create an empty GitHub repository, then run: git remote add origin <repository-url>'
+    exit 1
+  }
+
   Ensure-GitHubLogin $Gh
   $login = Invoke-Text { & $Gh api user --jq '.login' }
   if ($login.Length -eq 0) {
@@ -144,16 +150,18 @@ if (-not $git) {
   exit 1
 }
 
+$gitDir = Split-Path -Parent $git
+$gitRoot = Resolve-Path (Join-Path $gitDir '..') -ErrorAction SilentlyContinue
+if ($gitRoot) {
+  $env:PATH = "$gitDir;$($gitRoot.Path)\bin;$env:PATH"
+}
+
 $gh = Find-Executable `
   @('gh.exe', 'gh') `
   @(
     "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\bin\gh.exe",
     'C:\Program Files\GitHub CLI\gh.exe'
   )
-if (-not $gh) {
-  Write-Host 'GitHub CLI was not found. Please install GitHub CLI.'
-  exit 1
-}
 
 if (-not (Test-Path (Join-Path $root '.git'))) {
   & $git init -b main
@@ -162,13 +170,15 @@ if (-not (Test-Path (Join-Path $root '.git'))) {
   }
 }
 
-Ensure-GitHubLogin $gh
 Ensure-GitIdentity $git $gh
 $remoteUrl = Ensure-Repository $git $gh
 $committed = Commit-IfNeeded $git
 
 & $git branch -M main
-& $git push -u origin main
+& $git `
+  -c credential.https://github.com.helper= `
+  -c credential.https://github.com.helper=manager `
+  push -u origin main
 if ($LASTEXITCODE -ne 0) {
   Write-Host 'GitHub push failed.'
   exit $LASTEXITCODE
