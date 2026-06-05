@@ -10,6 +10,7 @@ import { createPlayerPet } from '@/systems/PetInstance';
 import { PlayerState } from '@/systems/PlayerState';
 import { preloadRainbowHallAssets } from '@/systems/SceneAssetPreloader';
 import { VIP_MEMBER_PET_IDS, grantVipMemberPets, type VipMemberPetId } from '@/systems/VipRewards';
+import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { makeHud, type HudHandle } from '@/ui/Hud';
 import { ensureCurrentPlayerWalkAnimation, currentPlayerSheetKey } from '@/utils/playerAvatar';
 import { ensureBossTexture } from '@/utils/placeholder';
@@ -203,21 +204,41 @@ export class RainbowHallScene extends Phaser.Scene {
     color: number,
     onClick: () => void,
   ): void {
-    const ring = this.add.circle(x, y, 26, color, 0.18).setDepth(68);
-    ring.setStrokeStyle(3, color, 0.9);
+    const contour = createVerifiedContourZone(this, {
+      area: {
+        kind: 'ellipse',
+        x,
+        y,
+        rx: 44,
+        ry: 28,
+      },
+      depth: 70,
+      label: `rainbow-hall.${label}`,
+      minWidth: 32,
+      minHeight: 22,
+      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
+    });
+    const ring = this.add.graphics().setDepth(68);
+    const draw = (active: boolean): void => {
+      ring.clear();
+      drawRaisedContour(ring, contour.area, {
+        color,
+        active,
+      });
+    };
+    draw(false);
     this.tweens.add({
       targets: ring,
-      scale: 1.25,
-      alpha: 0.42,
+      alpha: 0.5,
       yoyo: true,
       repeat: -1,
       duration: 780,
       ease: 'Sine.easeInOut',
     });
-    const hit = this.add.circle(x, y, 34, color, 0.02).setDepth(70).setInteractive({
-      useHandCursor: true,
-    });
-    hit.on('pointerup', onClick);
+    contour.zone
+      .on('pointerover', () => draw(true))
+      .on('pointerout', () => draw(false))
+      .on('pointerup', onClick);
     this.add
       .text(x, y + 36, label, {
         fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',

@@ -11,7 +11,7 @@ import { getPet } from '@/data/pets';
 import { completeActivityTask, consumePendingActivityTask } from '@/systems/ActivityProgress';
 import { gameEvents } from '@/systems/EventBus';
 import { buildGameplaySuggestions } from '@/systems/GameplayAdvisor';
-import { isPortalLikeHotspot } from '@/systems/LegacyHotspotVisuals';
+import { isPortalLikeHotspot, legacyHotspotContour } from '@/systems/LegacyHotspotVisuals';
 import { PlayerState } from '@/systems/PlayerState';
 import { rollEncounter } from '@/systems/EncounterRoller';
 import { motionScale, roamingPetBudget, virtualPlayerBudget } from '@/systems/PerformanceProfile';
@@ -24,6 +24,7 @@ import {
 } from '@/systems/VirtualPlayers';
 import { findPixelPath, type PixelPoint } from '@/systems/PixelPathfinding';
 import { createGameplayAdvisorPanel } from '@/ui/GameplayAdvisorPanel';
+import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { createPortalFlash } from '@/ui/PortalFlash';
 import { ensurePetTexture } from '@/utils/placeholder';
@@ -338,16 +339,25 @@ export class LegacyLocationScene extends Phaser.Scene {
 
   private drawHotspot(hotspot: LegacyLocationHotspot): void {
     const radius = hotspot.radius ?? 28;
+    const contour = legacyHotspotContour(hotspot);
+    const contourBounds = createVerifiedContourZone(this, {
+      area: contour,
+      depth: 1200,
+      label: `${this.locationId}.${hotspot.id}`,
+      minWidth: 24,
+      minHeight: 18,
+      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
+    });
     if (isPortalLikeHotspot(hotspot.action)) {
       createPortalFlash(this, hotspot.x, hotspot.y, {
-        radius: radius + 2,
+        radius: Math.max(radius + 2, contourBounds.bounds.width * 0.32),
         depth: 358,
         yScale: 0.7,
       });
     }
     const g = this.add.graphics().setDepth(360);
     const label = this.add
-      .text(hotspot.x, hotspot.y - radius - 18, hotspot.label, {
+      .text(hotspot.x, contourBounds.bounds.top - 18, hotspot.label, {
         fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
         fontSize: '18px',
         color: '#ffffff',
@@ -360,19 +370,15 @@ export class LegacyLocationScene extends Phaser.Scene {
     const draw = (hover: boolean): void => {
       g.clear();
       label.setAlpha(hover ? 1 : 0);
-      if (!hover) return;
-      g.fillStyle(0xffd93d, 0.22);
-      g.lineStyle(2, 0xffffff, 0.72);
-      g.fillCircle(hotspot.x, hotspot.y, radius);
-      g.strokeCircle(hotspot.x, hotspot.y, radius);
+      drawRaisedContour(g, contourBounds.area, {
+        color: isPortalLikeHotspot(hotspot.action) ? 0xffd93d : 0x8fe8ff,
+        active: hover,
+      });
       label.setColor('#fff7c7');
     };
     draw(false);
 
-    const hit = this.add
-      .zone(hotspot.x, hotspot.y, radius * 2, radius * 2)
-      .setDepth(1200)
-      .setInteractive({ useHandCursor: true });
+    const hit = contourBounds.zone;
     hit.on('pointerover', () => draw(true));
     hit.on('pointerout', () => draw(false));
     hit.on('pointerup', () => {

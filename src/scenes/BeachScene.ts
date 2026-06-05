@@ -24,6 +24,7 @@ import { applyVipRareBoost } from '@/systems/VipSystem';
 import { computeIsoFacing } from '@/systems/direction';
 import type { IsoDir } from '@/types/direction';
 import { makeHud, type HudHandle } from '@/ui/Hud';
+import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { generateHaibaoFrames, haibaoTextureKey, registerHaibaoAnims } from '@/utils/haibaoSprite';
 import { createResponsiveMapBackground } from '@/utils/responsiveBackground';
@@ -239,10 +240,29 @@ export class BeachScene extends Phaser.Scene {
   private drawHotspots(): void {
     for (const hotspot of BEACH_HOTSPOTS) {
       const g = this.add.graphics().setDepth(34);
-      g.fillStyle(hotspot.color, hotspot.kind === 'info' ? 0.12 : 0.1);
-      g.fillEllipse(hotspot.x, hotspot.y, hotspot.rx * 2, hotspot.ry * 2);
-      g.lineStyle(2, hotspot.color, 0.58);
-      g.strokeEllipse(hotspot.x, hotspot.y, hotspot.rx * 2, hotspot.ry * 2);
+      const contour = createVerifiedContourZone(this, {
+        area: {
+          kind: 'ellipse',
+          x: hotspot.x,
+          y: hotspot.y,
+          rx: hotspot.rx,
+          ry: hotspot.ry,
+        },
+        depth: 855,
+        label: `beach.${hotspot.id}`,
+        minWidth: 32,
+        minHeight: 24,
+        worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
+      });
+      const draw = (active: boolean): void => {
+        g.clear();
+        drawRaisedContour(g, contour.area, {
+          color: hotspot.color,
+          active,
+          fillAlpha: active ? 0.18 : hotspot.kind === 'info' ? 0.08 : 0.07,
+        });
+      };
+      draw(false);
       this.tweens.add({
         targets: g,
         alpha: { from: 0.72, to: 0.36 },
@@ -268,13 +288,16 @@ export class BeachScene extends Phaser.Scene {
         label.setScale(Math.max(0.8, (hotspot.rx * 2 + 46) / label.width), 1);
       }
 
-      const zone = this.add
-        .zone(hotspot.x, hotspot.y, hotspot.rx * 2, hotspot.ry * 2)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(855);
+      const zone = contour.zone;
       zone.on('pointerup', () => this.triggerHotspot(hotspot, 'tap'));
-      zone.on('pointerover', () => label.setColor('#fff4a8'));
-      zone.on('pointerout', () => label.setColor('#ffffff'));
+      zone.on('pointerover', () => {
+        label.setColor('#fff4a8');
+        draw(true);
+      });
+      zone.on('pointerout', () => {
+        label.setColor('#ffffff');
+        draw(false);
+      });
     }
   }
 

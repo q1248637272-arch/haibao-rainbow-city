@@ -11,6 +11,7 @@ import { rollEncounter } from '@/systems/EncounterRoller';
 import { preloadStartupWorldAssets } from '@/systems/SceneAssetPreloader';
 import { applyVipRareBoost } from '@/systems/VipSystem';
 import { findPixelPath, type PixelPoint } from '@/systems/PixelPathfinding';
+import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createGameplayAdvisorPanel } from '@/ui/GameplayAdvisorPanel';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { createPortalFlash } from '@/ui/PortalFlash';
@@ -292,8 +293,22 @@ export class LegacyMapScene extends Phaser.Scene {
 
   private drawPortal(portal: WorldPortal): void {
     const radius = portal.radius ?? 24;
+    const contour = createVerifiedContourZone(this, {
+      area: {
+        kind: 'ellipse',
+        x: portal.x,
+        y: portal.y + radius * 0.1,
+        rx: Math.max(34, radius * 1.42),
+        ry: Math.max(22, radius * 0.78),
+      },
+      depth: 1200,
+      label: `world.${portal.label}`,
+      minWidth: 24,
+      minHeight: 18,
+      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
+    });
     createPortalFlash(this, portal.x, portal.y, {
-      radius: radius + 2,
+      radius: Math.max(radius + 2, contour.bounds.width * 0.32),
       depth: 358,
       yScale: 0.7,
     });
@@ -312,17 +327,14 @@ export class LegacyMapScene extends Phaser.Scene {
     const draw = (hover: boolean): void => {
       g.clear();
       label.setAlpha(hover ? 1 : 0);
-      if (!hover) return;
-      g.fillStyle(0xffd93d, 0.2);
-      g.lineStyle(2, 0xffffff, 0.72);
-      g.fillCircle(portal.x, portal.y, radius);
-      g.strokeCircle(portal.x, portal.y, radius);
+      drawRaisedContour(g, contour.area, {
+        color: 0xffd93d,
+        active: hover,
+      });
       label.setColor('#fff4a8');
     };
     draw(false);
-    this.add
-      .zone(portal.x, portal.y, radius * 2, radius * 2)
-      .setInteractive({ useHandCursor: true })
+    contour.zone
       .on('pointerover', () => draw(true))
       .on('pointerout', () => draw(false))
       .on('pointerup', () => {

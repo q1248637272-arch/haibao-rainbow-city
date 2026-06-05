@@ -26,6 +26,7 @@ import { createPlayerPet } from '@/systems/PetInstance';
 import { findPixelPath, type PixelPoint } from '@/systems/PixelPathfinding';
 import { PlayerState } from '@/systems/PlayerState';
 import { preloadHomeAssets } from '@/systems/SceneAssetPreloader';
+import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import {
   currentPlayerButtonLabel,
@@ -476,7 +477,8 @@ export class HomeScene extends Phaser.Scene {
 
   private drawHotspot(hotspot: HomeHotspot): void {
     const textureKey = homeHotspotTexture(hotspot.id);
-    if (textureKey && this.textures.exists(textureKey)) {
+    const hasTexture = Boolean(textureKey && this.textures.exists(textureKey));
+    if (hasTexture && textureKey) {
       const size = Math.max(58, hotspot.radius * 1.55);
       const shadow = this.add
         .ellipse(hotspot.x, hotspot.y + 10, size * 0.72, size * 0.24, 0x000000, 0.22)
@@ -497,9 +499,32 @@ export class HomeScene extends Phaser.Scene {
       shadow.setScale(0.96);
     }
 
+    const contour = createVerifiedContourZone(this, {
+      area: hasTexture
+        ? {
+            kind: 'rect',
+            x: hotspot.x,
+            y: hotspot.y - hotspot.radius * 0.06,
+            width: Math.max(58, hotspot.radius * 1.66),
+            height: Math.max(42, hotspot.radius * 1.28),
+            radius: 10,
+          }
+        : {
+            kind: 'ellipse',
+            x: hotspot.x,
+            y: hotspot.y,
+            rx: Math.max(30, hotspot.radius * 1.04),
+            ry: Math.max(20, hotspot.radius * 0.68),
+          },
+      depth: 783,
+      label: `home.${hotspot.id}`,
+      minWidth: 24,
+      minHeight: 18,
+      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
+    });
     const marker = this.add.graphics().setDepth(780);
     const label = this.add
-      .text(hotspot.x, hotspot.y - hotspot.radius - 18, hotspot.label, {
+      .text(hotspot.x, contour.bounds.top - 16, hotspot.label, {
         fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
         fontSize: '17px',
         color: '#fff4a8',
@@ -513,18 +538,14 @@ export class HomeScene extends Phaser.Scene {
     const draw = (active: boolean): void => {
       marker.clear();
       label.setAlpha(active ? 1 : 0);
-      if (!active) return;
-      marker.fillStyle(0xffd93d, 0.18);
-      marker.lineStyle(2, 0xffffff, 0.72);
-      marker.fillCircle(hotspot.x, hotspot.y, hotspot.radius);
-      marker.strokeCircle(hotspot.x, hotspot.y, hotspot.radius);
+      drawRaisedContour(marker, contour.area, {
+        color: 0xffd93d,
+        active,
+      });
     };
     draw(false);
 
-    this.add
-      .zone(hotspot.x, hotspot.y, hotspot.radius * 2, hotspot.radius * 2)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(783)
+    contour.zone
       .on('pointerover', () => draw(true))
       .on('pointerout', () => draw(false))
       .on('pointerup', () => {

@@ -5,6 +5,7 @@ import { recommendedLevelLabel } from '@/data/locationDifficulty';
 import { getPet } from '@/data/pets';
 import { AudioManager } from '@/systems/AudioManager';
 import { preloadRouteMapAssets } from '@/systems/SceneAssetPreloader';
+import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { createPortalFlash } from '@/ui/PortalFlash';
 import { createResponsiveMapBackground } from '@/utils/responsiveBackground';
@@ -257,6 +258,20 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   }
 
   private createMapHotspot(hotspot: RouteMapHotspot): void {
+    const contour = createVerifiedContourZone(this, {
+      area: {
+        kind: 'ellipse',
+        x: hotspot.x,
+        y: hotspot.y,
+        rx: hotspot.radiusX,
+        ry: hotspot.radiusY,
+      },
+      depth: 43,
+      label: `route-map.${hotspot.label}`,
+      minWidth: 40,
+      minHeight: 28,
+      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
+    });
     createPortalFlash(this, hotspot.x, hotspot.y, {
       radius: Math.min(34, Math.max(24, hotspot.radiusY * 0.42)),
       depth: 39,
@@ -322,18 +337,15 @@ export class LegacyRouteMapScene extends Phaser.Scene {
         labelBg.fillRoundedRect(labelX - challengeWidth / 2, labelY + 12, challengeWidth, 22, 6);
         labelBg.strokeRoundedRect(labelX - challengeWidth / 2, labelY + 12, challengeWidth, 22, 6);
       }
-      if (!active) return;
-      marker.fillStyle(0xffd93d, 0.16);
-      marker.lineStyle(3, 0xfff4a8, 0.9);
-      marker.fillEllipse(hotspot.x, hotspot.y, hotspot.radiusX * 2, hotspot.radiusY * 2);
-      marker.strokeEllipse(hotspot.x, hotspot.y, hotspot.radiusX * 2, hotspot.radiusY * 2);
+      drawRaisedContour(marker, contour.area, {
+        color: active ? 0xffd93d : 0x8fe8ff,
+        active,
+        fillAlpha: active ? 0.16 : 0.045,
+      });
     };
     drawHover(false);
 
-    this.add
-      .zone(hotspot.x, hotspot.y, hotspot.radiusX * 2, hotspot.radiusY * 2)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(43)
+    contour.zone
       .on('pointerover', () => {
         drawHover(true);
         this.drawRoutePreview(hotspot);
