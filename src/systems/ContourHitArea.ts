@@ -60,6 +60,11 @@ export interface VerifiedContourSelection {
   readonly attempts: number;
 }
 
+export interface ChooseVerifiedContourOptions extends ContourVerificationOptions {
+  readonly fallbackArea?: ContourHitArea;
+  readonly allowGeneratedFallback?: boolean;
+}
+
 const DEFAULT_MIN_WIDTH = 18;
 const DEFAULT_MIN_HEIGHT = 18;
 const VERIFY_PASSES = 2;
@@ -128,13 +133,15 @@ export function verifyContourHitAreaTwice(
 
 export function chooseVerifiedContourHitArea(
   preferred: ContourHitArea,
-  options: ContourVerificationOptions & { readonly fallbackArea?: ContourHitArea } = {},
+  options: ChooseVerifiedContourOptions = {},
 ): VerifiedContourSelection {
+  const allowGeneratedFallback = options.allowGeneratedFallback !== false;
   const candidates: ContourHitArea[] = [
     preferred,
     ...(options.fallbackArea ? [options.fallbackArea] : []),
-    buildFallbackContour(preferred),
+    ...(allowGeneratedFallback ? [buildFallbackContour(preferred)] : []),
   ];
+  const failures: string[] = [];
 
   for (let i = 0; i < candidates.length; i += 1) {
     const candidate = candidates[i];
@@ -147,6 +154,11 @@ export function chooseVerifiedContourHitArea(
         attempts: i + 1,
       };
     }
+    failures.push(...verification.failures);
+  }
+
+  if (!allowGeneratedFallback) {
+    throw new Error(`Contour hit area could not pass verification: ${failures.join('; ')}`);
   }
 
   const fallback = buildFallbackContour(preferred, {

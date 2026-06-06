@@ -21,6 +21,7 @@ export interface RaisedContourStyle {
 
 export interface VerifiedContourZoneConfig extends ContourVerificationOptions {
   readonly area: ContourHitArea;
+  readonly allowGeneratedFallback?: boolean;
   readonly depth?: number;
   readonly fallbackArea?: ContourHitArea;
   readonly useHandCursor?: boolean;
@@ -76,18 +77,25 @@ export function createVerifiedContourZone(
     ...(config.minHeight !== undefined ? { minHeight: config.minHeight } : {}),
     ...(config.worldBounds !== undefined ? { worldBounds: config.worldBounds } : {}),
     ...(config.fallbackArea !== undefined ? { fallbackArea: config.fallbackArea } : {}),
+    ...(config.allowGeneratedFallback !== undefined
+      ? { allowGeneratedFallback: config.allowGeneratedFallback }
+      : {}),
   });
   const candidates = [
     selection.area,
     config.fallbackArea,
-    {
-      kind: 'rect' as const,
-      x: selection.verification.bounds.centerX,
-      y: selection.verification.bounds.centerY,
-      width: Math.max(36, selection.verification.bounds.width),
-      height: Math.max(28, selection.verification.bounds.height),
-      radius: 8,
-    },
+    ...(config.allowGeneratedFallback === false
+      ? []
+      : [
+          {
+            kind: 'rect' as const,
+            x: selection.verification.bounds.centerX,
+            y: selection.verification.bounds.centerY,
+            width: Math.max(36, selection.verification.bounds.width),
+            height: Math.max(28, selection.verification.bounds.height),
+            radius: 8,
+          },
+        ]),
   ].filter((area): area is ContourHitArea => Boolean(area));
 
   for (let i = 0; i < candidates.length; i += 1) {

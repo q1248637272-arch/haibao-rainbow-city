@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config/GameConfig';
+import { HOME_FIXED_HOTSPOT_IDS, HOME_HOTSPOT_CONTOURS } from '@/data/homeHotspots';
 import {
   chooseVerifiedContourHitArea,
   containsContourPoint,
@@ -51,6 +52,42 @@ describe('contour hit areas', () => {
     expect(selection.attempts).toBe(2);
     expect(selection.area).toEqual(fallback);
     expect(selection.verification.ok).toBe(true);
+  });
+
+  it('can reject invalid contours instead of widening them with a generated fallback', () => {
+    const invalid: ContourHitArea = { kind: 'ellipse', x: 120, y: 180, rx: -6, ry: 0 };
+
+    expect(() =>
+      chooseVerifiedContourHitArea(invalid, {
+        allowGeneratedFallback: false,
+        minWidth: 24,
+        minHeight: 18,
+        worldBounds: WORLD_BOUNDS,
+      }),
+    ).toThrow(/could not pass verification/);
+  });
+
+  it('keeps home fixed hotspots on explicit verified object contours', () => {
+    expect(Object.keys(HOME_HOTSPOT_CONTOURS).sort()).toEqual(
+      [...HOME_FIXED_HOTSPOT_IDS].sort(),
+    );
+
+    for (const id of HOME_FIXED_HOTSPOT_IDS) {
+      const area = HOME_HOTSPOT_CONTOURS[id];
+      const result = verifyContourHitAreaTwice(area, {
+        label: `home.${id}`,
+        minWidth: 24,
+        minHeight: 18,
+        worldBounds: WORLD_BOUNDS,
+      });
+      const bounds = contourBounds(area);
+
+      expect(area.kind, `${id} should use a fixed object contour`).toBe('polygon');
+      expect(result.failures).toEqual([]);
+      expect(result.ok).toBe(true);
+      expect(bounds.width, `${id} width`).toBeGreaterThanOrEqual(24);
+      expect(bounds.height, `${id} height`).toBeGreaterThanOrEqual(18);
+    }
   });
 
   it('keeps legacy-location response contours visible, bounded, and non-circular', () => {

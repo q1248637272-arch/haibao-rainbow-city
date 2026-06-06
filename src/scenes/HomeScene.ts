@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 
 import { BACKGROUND_COLOR, GAME_HEIGHT, GAME_WIDTH, SceneKey } from '@/config/GameConfig';
+import { HOME_HOTSPOT_CONTOURS, type HomeHotspotId } from '@/data/homeHotspots';
 import { ITEMS, getItem, itemsByKind } from '@/data/items';
 import { getPet } from '@/data/pets';
 import { completeActivityTask, consumePendingActivityTask } from '@/systems/ActivityProgress';
 import { AudioManager } from '@/systems/AudioManager';
 import { gameEvents } from '@/systems/EventBus';
+import { contourBounds, type ContourHitArea } from '@/systems/ContourHitArea';
 import {
   HATCHERY_CARE_ACTIONS,
   HATCHERY_REQUIRED_CARE,
@@ -129,13 +131,13 @@ const DECOR_ANCHORS = [
 ] as const;
 
 interface HomeHotspot {
-  readonly id: string;
+  readonly id: HomeHotspotId;
   readonly label: string;
   readonly x: number;
   readonly y: number;
   readonly walkX?: number;
   readonly walkY?: number;
-  readonly radius: number;
+  readonly contour: ContourHitArea;
   readonly action: () => void;
 }
 
@@ -343,7 +345,7 @@ export class HomeScene extends Phaser.Scene {
         y: 244,
         walkX: 260,
         walkY: 348,
-        radius: 56,
+        contour: HOME_HOTSPOT_CONTOURS['bed-rest'],
         action: () => this.restAtHome(),
       },
       {
@@ -353,7 +355,7 @@ export class HomeScene extends Phaser.Scene {
         y: 132,
         walkX: 330,
         walkY: 268,
-        radius: 34,
+        contour: HOME_HOTSPOT_CONTOURS['books-task'],
         action: () =>
           this.claimDailyReward('books-task', {
             coins: 30,
@@ -369,7 +371,7 @@ export class HomeScene extends Phaser.Scene {
         y: 410,
         walkX: 138,
         walkY: 448,
-        radius: 46,
+        contour: HOME_HOTSPOT_CONTOURS['energy-flower'],
         action: () =>
           this.claimDailyReward('energy-flower', {
             coins: 35,
@@ -388,7 +390,7 @@ export class HomeScene extends Phaser.Scene {
         y: 230,
         walkX: 690,
         walkY: 320,
-        radius: 48,
+        contour: HOME_HOTSPOT_CONTOURS['toy-chest'],
         action: () => this.openAngelChest(),
       },
       {
@@ -398,7 +400,7 @@ export class HomeScene extends Phaser.Scene {
         y: 384,
         walkX: 700,
         walkY: 430,
-        radius: 54,
+        contour: HOME_HOTSPOT_CONTOURS['trade-counter'],
         action: () =>
           this.claimDailyReward('trade-counter', {
             coins: 45,
@@ -417,7 +419,7 @@ export class HomeScene extends Phaser.Scene {
         y: 486,
         walkX: 358,
         walkY: 488,
-        radius: 68,
+        contour: HOME_HOTSPOT_CONTOURS['garden-plot'],
         action: () => this.tendGardenPlot(),
       },
       {
@@ -427,7 +429,7 @@ export class HomeScene extends Phaser.Scene {
         y: 198,
         walkX: 590,
         walkY: 330,
-        radius: 74,
+        contour: HOME_HOTSPOT_CONTOURS['farm-entrance'],
         action: () => this.scene.start(SceneKey.FARM, { fromScene: this.fromScene }),
       },
       {
@@ -437,7 +439,7 @@ export class HomeScene extends Phaser.Scene {
         y: 372,
         walkX: 600,
         walkY: 430,
-        radius: 58,
+        contour: HOME_HOTSPOT_CONTOURS['pet-incubator'],
         action: () => this.openHatcheryPanel(),
       },
       {
@@ -447,7 +449,7 @@ export class HomeScene extends Phaser.Scene {
         y: 226,
         walkX: 454,
         walkY: 330,
-        radius: 48,
+        contour: HOME_HOTSPOT_CONTOURS['purify-table'],
         action: () => this.purifyLegacyDoll(),
       },
       {
@@ -457,7 +459,7 @@ export class HomeScene extends Phaser.Scene {
         y: 186,
         walkX: 306,
         walkY: 282,
-        radius: 38,
+        contour: HOME_HOTSPOT_CONTOURS['build-book'],
         action: () => this.claimBuildReward(),
       },
       {
@@ -467,7 +469,7 @@ export class HomeScene extends Phaser.Scene {
         y: 246,
         walkX: 780,
         walkY: 342,
-        radius: 46,
+        contour: HOME_HOTSPOT_CONTOURS['pet-bed'],
         action: () => this.scene.start(SceneKey.PET_MANAGER, { fromScene: SceneKey.HOME }),
       },
     ];
@@ -478,8 +480,9 @@ export class HomeScene extends Phaser.Scene {
   private drawHotspot(hotspot: HomeHotspot): void {
     const textureKey = homeHotspotTexture(hotspot.id);
     const hasTexture = Boolean(textureKey && this.textures.exists(textureKey));
+    const hotspotBounds = contourBounds(hotspot.contour);
     if (hasTexture && textureKey) {
-      const size = Math.max(58, hotspot.radius * 1.55);
+      const size = Math.max(58, Math.max(hotspotBounds.width, hotspotBounds.height) * 0.72);
       const shadow = this.add
         .ellipse(hotspot.x, hotspot.y + 10, size * 0.72, size * 0.24, 0x000000, 0.22)
         .setDepth(421);
@@ -500,22 +503,8 @@ export class HomeScene extends Phaser.Scene {
     }
 
     const contour = createVerifiedContourZone(this, {
-      area: hasTexture
-        ? {
-            kind: 'rect',
-            x: hotspot.x,
-            y: hotspot.y - hotspot.radius * 0.06,
-            width: Math.max(58, hotspot.radius * 1.66),
-            height: Math.max(42, hotspot.radius * 1.28),
-            radius: 10,
-          }
-        : {
-            kind: 'ellipse',
-            x: hotspot.x,
-            y: hotspot.y,
-            rx: Math.max(30, hotspot.radius * 1.04),
-            ry: Math.max(20, hotspot.radius * 0.68),
-          },
+      area: hotspot.contour,
+      allowGeneratedFallback: false,
       depth: 783,
       label: `home.${hotspot.id}`,
       minWidth: 24,
