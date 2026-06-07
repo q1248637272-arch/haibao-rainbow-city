@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -107,6 +107,33 @@ describe('legacy map routing', () => {
     expect(routeMapSource).not.toContain('createVerifiedContourZone');
     expect(routeMapSource).not.toContain("kind: 'polygon'");
     expect(routeMapSource).not.toContain("kind: 'ellipse'");
+  });
+
+  it('uses Cockpit-generated gpt-image-2 patrol UI assets instead of only drawn fallbacks', () => {
+    const preloadSource = readFileSync(path.resolve('src/scenes/PreloadScene.ts'), 'utf8');
+    const preloaderSource = readFileSync(
+      path.resolve('src/systems/SceneAssetPreloader.ts'),
+      'utf8',
+    );
+    const locationSource = readFileSync(path.resolve('src/scenes/LegacyLocationScene.ts'), 'utf8');
+    const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
+    const assets = ['legacy_patrol_badge_image2', 'legacy_route_patrol_stamp_image2'] as const;
+
+    for (const key of assets) {
+      const assetPath = `public/assets/legacy/image2-restored/ui/${key}.webp`;
+      const fastPath = `public/assets/legacy/fast/image2-restored/ui/${key}_fast.webp`;
+      expect(preloadSource).toContain(`${key}:`);
+      expect(preloaderSource).toContain(key);
+      expect(existsSync(path.resolve(assetPath)), assetPath).toBe(true);
+      expect(existsSync(path.resolve(fastPath)), fastPath).toBe(true);
+      expect(statSync(path.resolve(assetPath)).size, assetPath).toBeGreaterThan(8_000);
+      expect(statSync(path.resolve(fastPath)).size, fastPath).toBeGreaterThan(4_000);
+    }
+
+    expect(locationSource).toContain("PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2'");
+    expect(routeMapSource).toContain(
+      "ROUTE_PATROL_STAMP_TEXTURE_KEY = 'legacy_route_patrol_stamp_image2'",
+    );
   });
 
   it('keeps cross-map exits as portals instead of unrelated prop sprites', () => {

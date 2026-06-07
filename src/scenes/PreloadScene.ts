@@ -241,6 +241,9 @@ export const LEGACY_HAIDI_ASSETS: Readonly<Record<string, string>> = {
   premium_library_archive_desk_image2:
     'assets/legacy/image2-restored/ui/premium_library_archive_desk_image2.webp',
   premium_nav_button_image2: 'assets/legacy/image2-restored/ui/premium_nav_button_image2.webp',
+  legacy_patrol_badge_image2: 'assets/legacy/image2-restored/ui/legacy_patrol_badge_image2.webp',
+  legacy_route_patrol_stamp_image2:
+    'assets/legacy/image2-restored/ui/legacy_route_patrol_stamp_image2.webp',
   legacy_player_hero: cacheBustLegacyAssetPath(
     'assets/legacy/image2-restored/characters/legacy_player_mermaid_image2.png',
     PLAYER_AVATAR_REDRAW_V2_CACHE_BUSTER,

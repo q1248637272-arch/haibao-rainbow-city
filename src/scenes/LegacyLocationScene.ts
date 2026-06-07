@@ -67,6 +67,7 @@ const LOCATION_ROAMING_PET_COUNT = 1;
 const LOCATION_VIRTUAL_PLAYER_COUNT = 2;
 const ENCOUNTER_RETURN_COOLDOWN_MS = 1800;
 const ENCOUNTER_RESUME_MOVE_DISTANCE = 28;
+const PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2';
 
 interface WalkTarget {
   readonly x: number;
@@ -1321,19 +1322,7 @@ export class LegacyLocationScene extends Phaser.Scene {
 
     this.add.rectangle(x, y, width, 44, fill, 0.82).setStrokeStyle(2, stroke, 0.66).setDepth(902);
 
-    const iconX = x - width / 2 + 26;
-    const icon = this.add.graphics().setDepth(903);
-    icon.lineStyle(2, stroke, 0.92);
-    icon.strokeCircle(iconX, y, 12);
-    icon.lineStyle(1, 0xffffff, 0.72);
-    icon.beginPath();
-    icon.moveTo(iconX, y - 16);
-    icon.lineTo(iconX, y + 16);
-    icon.moveTo(iconX - 16, y);
-    icon.lineTo(iconX + 16, y);
-    icon.strokePath();
-    icon.fillStyle(claimed ? 0x8fe8ff : 0xffef9a, 0.9);
-    icon.fillTriangle(iconX, y - 9, iconX + 5, y + 4, iconX - 4, y + 2);
+    this.drawPatrolBadgeIcon(x - width / 2 + 26, y, stroke, claimed);
 
     this.add
       .text(x - width / 2 + 50, y, `${title}\n${detail}`, {
@@ -1347,6 +1336,26 @@ export class LegacyLocationScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5)
       .setDepth(903);
+  }
+
+  private drawPatrolBadgeIcon(x: number, y: number, stroke: number, claimed: boolean): void {
+    if (this.textures.exists(PATROL_BADGE_TEXTURE_KEY)) {
+      this.add.image(x, y, PATROL_BADGE_TEXTURE_KEY).setDisplaySize(34, 34).setDepth(903);
+      return;
+    }
+
+    const icon = this.add.graphics().setDepth(903);
+    icon.lineStyle(2, stroke, 0.92);
+    icon.strokeCircle(x, y, 12);
+    icon.lineStyle(1, 0xffffff, 0.72);
+    icon.beginPath();
+    icon.moveTo(x, y - 16);
+    icon.lineTo(x, y + 16);
+    icon.moveTo(x - 16, y);
+    icon.lineTo(x + 16, y);
+    icon.strokePath();
+    icon.fillStyle(claimed ? 0x8fe8ff : 0xffef9a, 0.9);
+    icon.fillTriangle(x, y - 9, x + 5, y + 4, x - 4, y + 2);
   }
 
   private showReturnToast(): void {

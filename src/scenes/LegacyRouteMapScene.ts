@@ -38,6 +38,7 @@ interface RouteMapHotspotView {
 }
 
 const MAP_IMAGE_KEY = 'legacy_world_map_full';
+const ROUTE_PATROL_STAMP_TEXTURE_KEY = 'legacy_route_patrol_stamp_image2';
 
 export class LegacyRouteMapScene extends Phaser.Scene {
   private fromScene: string = SceneKey.WORLD;
@@ -361,18 +362,19 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       (item) => !hasClaimedLegacyPatrolToday(item.locationId),
     ).length;
 
+    this.addRoutePatrolStamp(panel, width - 48, 48, 56);
     panel.add([
-      this.addRouteIntelText(16, 12, '今日巡护', 17, '#ffffff', width - 32, true),
+      this.addRouteIntelText(16, 12, '今日巡护', 17, '#ffffff', width - 106, true),
       this.addRouteIntelText(
         16,
         38,
         `${unfinished}/${patrols.length} 待巡护`,
         20,
         '#fff4a8',
-        width - 32,
+        width - 106,
         true,
       ),
-      this.addRouteIntelText(16, 68, '旧地点战斗/收服结算 · 每日刷新', 13, '#c8f7ff', width - 32),
+      this.addRouteIntelText(16, 68, '旧地点战斗/收服结算 · 每日刷新', 13, '#c8f7ff', width - 106),
     ]);
   }
 
@@ -391,15 +393,16 @@ export class LegacyRouteMapScene extends Phaser.Scene {
         )}`
       : '暂无野外巡护';
 
+    this.addRoutePatrolStamp(panel, width - 48, 48, 58);
     panel.add([
-      this.addRouteIntelText(16, 12, hotspot.label, 18, '#ffffff', width - 32, true),
+      this.addRouteIntelText(16, 12, hotspot.label, 18, '#ffffff', width - 106, true),
       this.addRouteIntelText(
         16,
         40,
         `${recommendedLevelLabel(hotspot.locationId)} · 野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`,
         13,
         '#fff4a8',
-        width - 32,
+        width - 106,
       ),
       this.addRouteIntelText(
         16,
@@ -407,10 +410,41 @@ export class LegacyRouteMapScene extends Phaser.Scene {
         patrolLine,
         13,
         patrolDone ? '#bff8ff' : '#ffe6a3',
-        width - 32,
+        width - 106,
       ),
       this.addRouteIntelText(16, 86, def.blurb, 13, '#d9f6ff', width - 32),
     ]);
+  }
+
+  private addRoutePatrolStamp(
+    panel: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    size: number,
+  ): void {
+    if (this.textures.exists(ROUTE_PATROL_STAMP_TEXTURE_KEY)) {
+      panel.add(
+        this.add
+          .image(x, y, ROUTE_PATROL_STAMP_TEXTURE_KEY)
+          .setDisplaySize(size, size)
+          .setAlpha(0.96),
+      );
+      return;
+    }
+
+    const stamp = this.add.graphics();
+    stamp.lineStyle(2, 0xffd166, 0.9);
+    stamp.fillStyle(0x123b4b, 0.72);
+    stamp.fillCircle(x, y, size / 2);
+    stamp.strokeCircle(x, y, size / 2);
+    stamp.lineStyle(1, 0xffffff, 0.75);
+    stamp.beginPath();
+    stamp.moveTo(x, y - size * 0.35);
+    stamp.lineTo(x, y + size * 0.35);
+    stamp.moveTo(x - size * 0.35, y);
+    stamp.lineTo(x + size * 0.35, y);
+    stamp.strokePath();
+    panel.add(stamp);
   }
 
   private addRouteIntelText(
