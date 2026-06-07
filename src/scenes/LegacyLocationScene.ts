@@ -58,6 +58,15 @@ const LOCATION_VIRTUAL_PLAYER_COUNT = 2;
 const ENCOUNTER_RETURN_COOLDOWN_MS = 1800;
 const ENCOUNTER_RESUME_MOVE_DISTANCE = 28;
 const LEGACY_REWARD_SAVE_KEY = 'hbcc:legacy-location-rewards:v1';
+const LEGACY_PATROL_ITEM_ID = 'exp_candy';
+const LEGACY_PATROL_ITEM_LABEL = '经验糖';
+
+interface LegacyPatrolReward {
+  readonly coins: number;
+  readonly itemId: string;
+  readonly itemLabel: string;
+  readonly itemQuantity: number;
+}
 
 interface WalkTarget {
   readonly x: number;
@@ -440,6 +449,10 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private hotspotStatusSuffix(hotspot: LegacyLocationHotspot): string {
+    if (hotspot.action.kind === 'battle' && hotspot.action.encounterZoneId) {
+      return this.isPatrolRewardClaimedToday() ? ' · 巡护已完成' : ' · 巡护未完成';
+    }
+
     const reward = hotspot.action.reward;
     if (!reward?.oncePerDay) return '';
     const key = `${this.locationId}:${hotspot.action.label}`;
@@ -1058,6 +1071,21 @@ export class LegacyLocationScene extends Phaser.Scene {
     }
   }
 
+  private isPatrolRewardClaimedToday(): boolean {
+    return this.hasClaimedLegacyRewardToday(legacyPatrolRewardKey(this.locationId));
+  }
+
+  private tryClaimLegacyPatrolReward(): string | null {
+    const def = LEGACY_LOCATIONS[this.locationId];
+    if (!this.findLocationEncounterZone(def) || this.isPatrolRewardClaimedToday()) return null;
+
+    const reward = legacyPatrolRewardForLocation(this.locationId);
+    PlayerState.addCoins(reward.coins);
+    PlayerState.addItem(reward.itemId, reward.itemQuantity);
+    this.markLegacyRewardClaimedToday(legacyPatrolRewardKey(this.locationId));
+    return `巡护完成：+${reward.coins} 彩虹币，+${reward.itemQuantity} ${reward.itemLabel}`;
+  }
+
   private startRoamingPetBattle(pet: RoamingPet): void {
     if (this.battleStarting) return;
     if (this.time.now < this.encounterCooldownUntil) return;
@@ -1291,10 +1319,11 @@ export class LegacyLocationScene extends Phaser.Scene {
   private drawDifficultyBadge(): void {
     const diff = difficultyForLocation(this.locationId);
     const label = `${recommendedLevelLabel(this.locationId)}  野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`;
-    const x = GAME_WIDTH - 148;
-    const y = 28;
+    const x = GAME_WIDTH - 146;
+    const y = 76;
+    const width = 236;
     this.add
-      .rectangle(x, y, 226, 36, 0x0b3768, 0.74)
+      .rectangle(x, y, width, 34, 0x0b3768, 0.74)
       .setStrokeStyle(2, 0xffffff, 0.5)
       .setDepth(902);
     this.add
@@ -1306,6 +1335,51 @@ export class LegacyLocationScene extends Phaser.Scene {
         strokeThickness: 3,
       })
       .setOrigin(0.5)
+      .setDepth(903);
+
+    this.drawPatrolBadge(x, y + 42, width);
+  }
+
+  private drawPatrolBadge(x: number, y: number, width: number): void {
+    const def = LEGACY_LOCATIONS[this.locationId];
+    if (!this.findLocationEncounterZone(def)) return;
+
+    const reward = legacyPatrolRewardForLocation(this.locationId);
+    const claimed = this.isPatrolRewardClaimedToday();
+    const fill = claimed ? 0x123b4b : 0x174b68;
+    const stroke = claimed ? 0x8fe8ff : 0xffd166;
+    const title = claimed ? '巡护 已完成' : '巡护 待完成';
+    const detail = claimed
+      ? '明日刷新'
+      : `战斗/收服 +${reward.coins}币 +${reward.itemQuantity}${reward.itemLabel}`;
+
+    this.add.rectangle(x, y, width, 44, fill, 0.82).setStrokeStyle(2, stroke, 0.66).setDepth(902);
+
+    const iconX = x - width / 2 + 26;
+    const icon = this.add.graphics().setDepth(903);
+    icon.lineStyle(2, stroke, 0.92);
+    icon.strokeCircle(iconX, y, 12);
+    icon.lineStyle(1, 0xffffff, 0.72);
+    icon.beginPath();
+    icon.moveTo(iconX, y - 16);
+    icon.lineTo(iconX, y + 16);
+    icon.moveTo(iconX - 16, y);
+    icon.lineTo(iconX + 16, y);
+    icon.strokePath();
+    icon.fillStyle(claimed ? 0x8fe8ff : 0xffef9a, 0.9);
+    icon.fillTriangle(iconX, y - 9, iconX + 5, y + 4, iconX - 4, y + 2);
+
+    this.add
+      .text(x - width / 2 + 50, y, `${title}\n${detail}`, {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '13px',
+        color: claimed ? '#c8f7ff' : '#fff6d2',
+        stroke: '#1b1b3a',
+        strokeThickness: 3,
+        fixedWidth: width - 60,
+        lineSpacing: 1,
+      })
+      .setOrigin(0, 0.5)
       .setDepth(903);
   }
 
@@ -1321,11 +1395,15 @@ export class LegacyLocationScene extends Phaser.Scene {
       this.justLostTrainerBattle = false;
     } else if (this.justCapturedPetId) {
       const pet = getPet(this.justCapturedPetId);
-      this.showToast(pet ? `你收服了 ${pet.name}！` : '你收服了一只新伙伴！');
+      const patrolMessage = this.tryClaimLegacyPatrolReward();
+      const captureMessage = pet ? `你收服了 ${pet.name}！` : '你收服了一只新伙伴！';
+      this.showToast(patrolMessage ? `${captureMessage}\n${patrolMessage}` : captureMessage);
       this.justCapturedPetId = null;
     } else if (this.justDefeatedWildPetId) {
       const pet = getPet(this.justDefeatedWildPetId);
-      this.showToast(pet ? `战胜 ${pet.name}！` : '战胜了野生精灵！');
+      const patrolMessage = this.tryClaimLegacyPatrolReward();
+      const defeatMessage = pet ? `战胜 ${pet.name}！` : '战胜了野生精灵！';
+      this.showToast(patrolMessage ? `${defeatMessage}\n${patrolMessage}` : defeatMessage);
       this.justDefeatedWildPetId = null;
     } else if (this.justLostWildBattle) {
       this.showToast('野生精灵跑远了。');
@@ -1416,4 +1494,18 @@ export class LegacyLocationScene extends Phaser.Scene {
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function legacyPatrolRewardKey(locationId: LegacyLocationId): string {
+  return `${locationId}:patrol`;
+}
+
+function legacyPatrolRewardForLocation(locationId: LegacyLocationId): LegacyPatrolReward {
+  const recommended = difficultyForLocation(locationId).recommended;
+  return {
+    coins: Math.min(160, Math.round((30 + recommended * 4) / 5) * 5),
+    itemId: LEGACY_PATROL_ITEM_ID,
+    itemLabel: LEGACY_PATROL_ITEM_LABEL,
+    itemQuantity: recommended >= 18 ? 2 : 1,
+  };
 }

@@ -79,6 +79,20 @@ describe('legacy map routing', () => {
     expect(sceneSource).not.toContain("item.action.kind !== 'battle'");
   });
 
+  it('rewards one daily old-location patrol from successful wild encounters', () => {
+    const sceneSource = readFileSync(path.resolve('src/scenes/LegacyLocationScene.ts'), 'utf8');
+
+    expect(sceneSource).toContain('legacyPatrolRewardKey');
+    expect(sceneSource).toContain('legacyPatrolRewardForLocation');
+    expect(sceneSource).toContain('tryClaimLegacyPatrolReward');
+    expect(sceneSource).toContain('drawPatrolBadge');
+    expect(sceneSource).toContain('巡护未完成');
+    expect(sceneSource).toContain('巡护完成');
+    expect(sceneSource).toContain('PlayerState.addCoins(reward.coins)');
+    expect(sceneSource).toContain('PlayerState.addItem(reward.itemId, reward.itemQuantity)');
+    expect(sceneSource).toContain('const patrolMessage = this.tryClaimLegacyPatrolReward();');
+  });
+
   it('keeps cross-map exits as portals instead of unrelated prop sprites', () => {
     const centerCasino = hotspot('center', 'center-casino');
     const caveMap = hotspot('energy_cave', 'cave-map');
