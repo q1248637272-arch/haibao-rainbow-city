@@ -15,8 +15,7 @@ const WIDE_LEGACY_ASSET_PATHS: Readonly<Record<string, string>> = {
   legacy_home_walkable: 'assets/legacy/redraw-wide/legacy_home_walkable_wide_v2_image2.png',
   legacy_farm_walkable: 'assets/legacy/redraw-wide/legacy_farm_walkable_wide_v2_image2.png',
   legacy_beach_integrated: 'assets/legacy/redraw-wide/legacy_beach_integrated_wide_v2_image2.png',
-  legacy_gym_badge_dojo:
-    'assets/legacy/redraw-wide/legacy_gym_badge_dojo_wide_v1_image2.png',
+  legacy_gym_badge_dojo: 'assets/legacy/redraw-wide/legacy_gym_badge_dojo_wide_v1_image2.png',
   legacy_crystal_cave_clean:
     'assets/legacy/redraw-wide/legacy_crystal_cave_clean_wide_v1_image2.png',
 };
@@ -171,6 +170,19 @@ describe('responsive wide map redraw assets', () => {
     expect(homeSceneSource).toContain('containsHomeMaskPoint(mask, hitArea.width, hitArea.height');
     expect(homeSceneSource).toContain("fitMode: 'stretch'");
     expect(homeSceneSource).not.toContain("fitMode: 'contain'");
+  });
+
+  it('keeps route-map response areas synced to the stretched background transform', () => {
+    const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
+
+    expect(routeMapSource).toContain("fitMode: 'stretch'");
+    expect(routeMapSource).toContain('routeMapDisplayBounds');
+    expect(routeMapSource).toContain('getDisplayBounds');
+    expect(routeMapSource).toContain('bounds.left + hotspot.x * scaleX');
+    expect(routeMapSource).toContain('this.routeMapPoint(sourceStart.x, sourceStart.y)');
+    expect(routeMapSource).toContain('allowGeneratedFallback: false');
+    expect(routeMapSource).not.toContain("kind: 'polygon'");
+    expect(routeMapSource).not.toContain("fitMode: 'contain'");
   });
 
   it('scrolls page-game style only after the player enters the viewport edge band', () => {

@@ -8,7 +8,11 @@ import { preloadRouteMapAssets } from '@/systems/SceneAssetPreloader';
 import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { createPortalFlash } from '@/ui/PortalFlash';
-import { createResponsiveMapBackground } from '@/utils/responsiveBackground';
+import {
+  createResponsiveMapBackground,
+  type ResponsiveMapBackground,
+  type ResponsiveMapDisplayBounds,
+} from '@/utils/responsiveBackground';
 
 import type { LegacyLocationId } from './LegacyContent';
 
@@ -23,6 +27,10 @@ interface RouteMapHotspot {
   readonly targetScene?: string;
   readonly locationId?: LegacyLocationId;
   readonly message?: string;
+}
+
+interface RouteMapHotspotView {
+  readonly objects: readonly Phaser.GameObjects.GameObject[];
 }
 
 const MAP_IMAGE_KEY = 'legacy_world_map_full';
@@ -183,6 +191,9 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   private justLostWildBattle = false;
   private escapedFromBattle = false;
   private routePreview: Phaser.GameObjects.Graphics | null = null;
+  private routeBackground: ResponsiveMapBackground | null = null;
+  private routeHotspotViews: RouteMapHotspotView[] = [];
+  private navScrim: Phaser.GameObjects.Rectangle | null = null;
 
   public constructor() {
     super({ key: SceneKey.LEGACY_ROUTE_MAP });
@@ -200,6 +211,9 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     this.justDefeatedWildPetId = data?.justDefeatedWildPetId ?? null;
     this.justLostWildBattle = data?.justLostWildBattle === true;
     this.escapedFromBattle = data?.escapedFromBattle === true;
+    this.routeBackground = null;
+    this.routeHotspotViews = [];
+    this.navScrim = null;
   }
 
   public preload(): void {
@@ -232,15 +246,26 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     );
     this.createNavButton(758, 42, '签到', () => this.scene.start(SceneKey.VIP_PANEL));
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.clearToast());
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.refreshRouteLayout, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshRouteLayout, this);
+      this.clearRoutePreview();
+      this.destroyRouteHotspots();
+      this.clearToast();
+      this.routeBackground = null;
+      this.navScrim = null;
+    });
     this.showReturnToast();
     AudioManager.play('world_rainbow', undefined, this);
   }
 
   private drawMap(): void {
     if (this.textures.exists(MAP_IMAGE_KEY)) {
-      createResponsiveMapBackground(this, MAP_IMAGE_KEY);
+      this.routeBackground = createResponsiveMapBackground(this, MAP_IMAGE_KEY, {
+        fitMode: 'stretch',
+      });
     } else {
+      this.routeBackground = null;
       this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x86d5ea, 1).setOrigin(0);
       this.add
         .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '彩虹城大地图素材加载失败', {
@@ -253,27 +278,96 @@ export class LegacyRouteMapScene extends Phaser.Scene {
         .setOrigin(0.5);
     }
 
-    this.add.rectangle(0, 0, GAME_WIDTH, 88, 0x082b5c, 0.22).setOrigin(0).setScrollFactor(0);
+    this.navScrim = this.add
+      .rectangle(0, 0, this.routeViewportWidth(), 88, 0x082b5c, 0.22)
+      .setOrigin(0)
+      .setScrollFactor(0);
+    this.rebuildRouteHotspots();
+  }
+
+  private refreshRouteLayout(): void {
+    this.routeBackground?.refresh();
+    this.navScrim?.setSize(this.routeViewportWidth(), 88);
+    this.rebuildRouteHotspots();
+  }
+
+  private routeViewportWidth(): number {
+    return Math.max(GAME_WIDTH, this.cameras.main.width);
+  }
+
+  private rebuildRouteHotspots(): void {
+    this.destroyRouteHotspots();
     HOTSPOTS.forEach((hotspot) => this.createMapHotspot(hotspot));
   }
 
+  private destroyRouteHotspots(): void {
+    this.clearRoutePreview();
+    for (const view of this.routeHotspotViews) {
+      for (const object of view.objects) {
+        if (object instanceof Phaser.GameObjects.Container) {
+          this.tweens.killTweensOf(object.list);
+        }
+        this.tweens.killTweensOf(object);
+        object.destroy();
+      }
+    }
+    this.routeHotspotViews = [];
+  }
+
+  private routeMapDisplayBounds(): ResponsiveMapDisplayBounds {
+    return (
+      this.routeBackground?.getDisplayBounds() ?? {
+        left: 0,
+        top: 0,
+        width: GAME_WIDTH,
+        height: GAME_HEIGHT,
+      }
+    );
+  }
+
+  private routeMapPoint(x: number, y: number): { readonly x: number; readonly y: number } {
+    const bounds = this.routeMapDisplayBounds();
+    return {
+      x: bounds.left + x * (bounds.width / GAME_WIDTH),
+      y: bounds.top + y * (bounds.height / GAME_HEIGHT),
+    };
+  }
+
+  private routeMapEllipse(hotspot: RouteMapHotspot): {
+    readonly x: number;
+    readonly y: number;
+    readonly rx: number;
+    readonly ry: number;
+  } {
+    const bounds = this.routeMapDisplayBounds();
+    const scaleX = bounds.width / GAME_WIDTH;
+    const scaleY = bounds.height / GAME_HEIGHT;
+    return {
+      x: bounds.left + hotspot.x * scaleX,
+      y: bounds.top + hotspot.y * scaleY,
+      rx: hotspot.radiusX * scaleX,
+      ry: hotspot.radiusY * scaleY,
+    };
+  }
+
   private createMapHotspot(hotspot: RouteMapHotspot): void {
+    const ellipse = this.routeMapEllipse(hotspot);
     const contour = createVerifiedContourZone(this, {
       area: {
         kind: 'ellipse',
-        x: hotspot.x,
-        y: hotspot.y,
-        rx: hotspot.radiusX,
-        ry: hotspot.radiusY,
+        x: ellipse.x,
+        y: ellipse.y,
+        rx: ellipse.rx,
+        ry: ellipse.ry,
       },
+      allowGeneratedFallback: false,
       depth: 43,
       label: `route-map.${hotspot.label}`,
       minWidth: 40,
       minHeight: 28,
-      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
     });
-    createPortalFlash(this, hotspot.x, hotspot.y, {
-      radius: Math.min(34, Math.max(24, hotspot.radiusY * 0.42)),
+    const flash = createPortalFlash(this, ellipse.x, ellipse.y, {
+      radius: Math.min(34, Math.max(24, ellipse.ry * 0.42)),
       depth: 39,
       yScale: 0.72,
     });
@@ -283,8 +377,12 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       hotspot.y + hotspot.radiusY + 36 > GAME_HEIGHT
         ? hotspot.y - hotspot.radiusY - 24
         : hotspot.y + hotspot.radiusY + 18;
-    const labelX = hotspot.labelX ?? hotspot.x;
-    const labelY = hotspot.labelY ?? autoLabelY;
+    const labelPoint = this.routeMapPoint(
+      hotspot.labelX ?? hotspot.x,
+      hotspot.labelY ?? autoLabelY,
+    );
+    const labelX = labelPoint.x;
+    const labelY = labelPoint.y;
     const labelText = this.add
       .text(labelX, labelY, hotspot.label, {
         fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
@@ -355,17 +453,30 @@ export class LegacyRouteMapScene extends Phaser.Scene {
         this.clearRoutePreview();
       })
       .on('pointerup', () => this.openHotspot(hotspot));
+    this.routeHotspotViews.push({
+      objects: [
+        contour.zone,
+        flash,
+        marker,
+        labelBg,
+        labelText,
+        ...(challengeText ? [challengeText] : []),
+      ],
+    });
   }
 
   private drawRoutePreview(hotspot: RouteMapHotspot): void {
     this.clearRoutePreview();
     const route = this.add.graphics().setDepth(38);
-    const start = { x: 480, y: 318 };
-    const end = { x: hotspot.x, y: hotspot.y };
-    const control = {
-      x: (start.x + end.x) / 2,
-      y: Math.min(start.y, end.y) - 54,
+    const sourceStart = { x: 480, y: 318 };
+    const sourceEnd = { x: hotspot.x, y: hotspot.y };
+    const sourceControl = {
+      x: (sourceStart.x + sourceEnd.x) / 2,
+      y: Math.min(sourceStart.y, sourceEnd.y) - 54,
     };
+    const start = this.routeMapPoint(sourceStart.x, sourceStart.y);
+    const end = this.routeMapPoint(sourceEnd.x, sourceEnd.y);
+    const control = this.routeMapPoint(sourceControl.x, sourceControl.y);
     const points: Array<{ x: number; y: number }> = [];
     for (let i = 0; i <= 28; i += 1) {
       const t = i / 28;
