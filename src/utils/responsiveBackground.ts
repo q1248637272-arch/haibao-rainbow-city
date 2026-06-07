@@ -41,8 +41,13 @@ export function createResponsiveMapBackground(
 ): ResponsiveMapBackground {
   const depth = options.depth ?? 0;
   const wideKey = `${key}_wide`;
-  const textureKey = scene.textures.exists(wideKey) ? wideKey : key;
-  const isWideRedraw = textureKey === wideKey;
+  const expandedKey = `${key}_expanded`;
+  const textureKey = scene.textures.exists(wideKey)
+    ? wideKey
+    : scene.textures.exists(expandedKey)
+      ? expandedKey
+      : key;
+  const isWideRedraw = textureKey !== key;
   const stage = scene.add
     .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, textureKey)
     .setDepth(depth)

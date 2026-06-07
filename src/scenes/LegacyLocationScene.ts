@@ -317,7 +317,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     for (const npc of STORY_NPCS[def.id] ?? []) {
       this.drawNpc(npc);
     }
-    for (const hotspot of def.hotspots.filter((item) => item.action.kind !== 'battle')) {
+    for (const hotspot of def.hotspots) {
       this.drawHotspot(hotspot);
     }
   }
@@ -356,23 +356,50 @@ export class LegacyLocationScene extends Phaser.Scene {
       });
     }
     const g = this.add.graphics().setDepth(360);
+    const labelBg = this.add.graphics().setDepth(361);
     const label = this.add
-      .text(hotspot.x, contourBounds.bounds.top - 18, hotspot.label, {
+      .text(hotspot.x, contourBounds.bounds.top - 20, this.hotspotLabel(hotspot), {
         fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-        fontSize: '18px',
+        fontSize: '15px',
         color: '#ffffff',
         stroke: '#1b1b3a',
         strokeThickness: 4,
+        align: 'center',
+        lineSpacing: 2,
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5, 1)
       .setDepth(362)
       .setAlpha(0);
+    const color = this.hotspotColor(hotspot.action);
     const draw = (hover: boolean): void => {
       g.clear();
+      labelBg.clear();
+      label.setText(this.hotspotLabel(hotspot));
       label.setAlpha(hover ? 1 : 0);
+      if (hover) {
+        const width = Math.max(96, Math.min(214, label.width + 22));
+        const height = label.height + 12;
+        labelBg.fillStyle(0x0b3768, 0.86);
+        labelBg.lineStyle(2, color, 0.88);
+        labelBg.fillRoundedRect(
+          hotspot.x - width / 2,
+          contourBounds.bounds.top - height - 28,
+          width,
+          height,
+          7,
+        );
+        labelBg.strokeRoundedRect(
+          hotspot.x - width / 2,
+          contourBounds.bounds.top - height - 28,
+          width,
+          height,
+          7,
+        );
+      }
       drawRaisedContour(g, contourBounds.area, {
-        color: isPortalLikeHotspot(hotspot.action) ? 0xffd93d : 0x8fe8ff,
+        color,
         active: hover,
+        fillAlpha: hover ? 0.16 : 0.04,
       });
       label.setColor('#fff7c7');
     };
@@ -388,6 +415,35 @@ export class LegacyLocationScene extends Phaser.Scene {
       });
       this.walkToHotspot(hotspot);
     });
+  }
+
+  private hotspotColor(action: LegacyAction): number {
+    if (isPortalLikeHotspot(action)) return 0xffd93d;
+    switch (action.kind) {
+      case 'battle':
+        return 0xff6b6b;
+      case 'reward':
+        return 0xff9f2f;
+      case 'scene':
+        return 0x8fe8ff;
+      case 'location':
+        return 0xffd93d;
+      case 'toast':
+        return 0xc9a7ff;
+    }
+    return 0x8fe8ff;
+  }
+
+  private hotspotLabel(hotspot: LegacyLocationHotspot): string {
+    const status = this.hotspotStatusSuffix(hotspot);
+    return `${hotspot.label}\n${hotspot.action.label}${status}`;
+  }
+
+  private hotspotStatusSuffix(hotspot: LegacyLocationHotspot): string {
+    const reward = hotspot.action.reward;
+    if (!reward?.oncePerDay) return '';
+    const key = `${this.locationId}:${hotspot.action.label}`;
+    return this.hasClaimedLegacyRewardToday(key) ? ' · 今日已领' : ' · 每日';
   }
 
   private drawNpc(npc: LegacyLocationNpc): void {

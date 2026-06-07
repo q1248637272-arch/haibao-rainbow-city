@@ -21,6 +21,13 @@ const WIDE_LEGACY_ASSET_PATHS: Readonly<Record<string, string>> = {
     'assets/legacy/redraw-wide/legacy_crystal_cave_clean_wide_v1_image2.png',
 };
 
+const EXPANDED_LEGACY_FALLBACKS = [
+  'legacy_library_clean',
+  'legacy_lab_clean',
+  'legacy_maze_gate_clean',
+  'legacy_spaceship_clean',
+] as const;
+
 function readPngSize(filePath: string): { width: number; height: number } {
   const buffer = readFileSync(filePath);
   expect(buffer.toString('ascii', 1, 4)).toBe('PNG');
@@ -54,6 +61,29 @@ describe('responsive wide map redraw assets', () => {
 
   it('falls back cleanly when a map has no dedicated wide redraw yet', () => {
     expect(WIDE_LEGACY_ASSET_PATHS.legacy_lab_clean).toBeUndefined();
+  });
+
+  it('uses expanded legacy redraw fallbacks for old maps without dedicated wide art', () => {
+    const responsiveBackgroundSource = readFileSync(
+      path.resolve('src/utils/responsiveBackground.ts'),
+      'utf8',
+    );
+    const preloadSource = readFileSync(path.resolve('src/scenes/PreloadScene.ts'), 'utf8');
+    const scenePreloaderSource = readFileSync(
+      path.resolve('src/systems/SceneAssetPreloader.ts'),
+      'utf8',
+    );
+
+    expect(responsiveBackgroundSource).toContain('expandedKey');
+    expect(responsiveBackgroundSource).toContain('scene.textures.exists(expandedKey)');
+    expect(preloadSource).toContain('expandedLegacyAssetPath(key)');
+    expect(scenePreloaderSource).toContain('expandedLegacyAssetPath(key)');
+
+    for (const key of EXPANDED_LEGACY_FALLBACKS) {
+      const expanded = path.resolve('public/assets/legacy/expanded', `${key}_expanded.webp`);
+      expect(existsSync(expanded), `${key} expanded fallback`).toBe(true);
+      expect(readFileSync(expanded).byteLength, `${key} expanded bytes`).toBeGreaterThan(120_000);
+    }
   });
 
   it('uses true ultrawide redraws instead of the old square-ish wide maps', () => {

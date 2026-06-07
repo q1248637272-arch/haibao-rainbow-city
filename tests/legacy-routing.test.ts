@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -63,6 +66,17 @@ describe('legacy map routing', () => {
     expect(legacyHotspotTexture(hotspot('coral_market', 'coral-market-stall'))).toBeNull();
     expect(legacyHotspotTexture(hotspot('tide_playground', 'tide-trial-start'))).toBeNull();
     expect(legacyHotspotTexture(hotspot('casino', 'casino-daily-chips'))).toBeNull();
+  });
+
+  it('makes old location battle hotspots visible and adds a library combat loop', () => {
+    const sceneSource = readFileSync(path.resolve('src/scenes/LegacyLocationScene.ts'), 'utf8');
+    const echo = hotspot('library', 'library-archive-echo');
+
+    expect(echo.action.kind).toBe('battle');
+    expect(echo.action.encounterZoneId).toBe('rainbow_city:garden');
+    expect(sceneSource).toContain('for (const hotspot of def.hotspots)');
+    expect(sceneSource).toContain('hotspotStatusSuffix');
+    expect(sceneSource).not.toContain("item.action.kind !== 'battle'");
   });
 
   it('keeps cross-map exits as portals instead of unrelated prop sprites', () => {

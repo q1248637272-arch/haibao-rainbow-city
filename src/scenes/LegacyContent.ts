@@ -263,6 +263,18 @@ export const LEGACY_LOCATIONS: Record<LegacyLocationId, LegacyLocationDef> = {
         action: { label: '查看任务', kind: 'scene', target: SceneKey.QUEST_BOARD },
       },
       {
+        id: 'library-archive-echo',
+        label: '回声',
+        x: 596,
+        y: 418,
+        radius: 42,
+        action: {
+          label: '清理档案回声',
+          kind: 'battle',
+          encounterZoneId: 'rainbow_city:garden',
+        },
+      },
+      {
         id: 'library-note',
         label: '资料',
         x: 346,

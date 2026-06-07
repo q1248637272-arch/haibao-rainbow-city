@@ -11,6 +11,8 @@ import { PETS } from '@/data/pets';
 import { ROUTE_MAP_HOTSPOT_IMAGE_ASSETS } from '@/data/routeMapHotspots';
 import {
   fastLegacyAssetPath,
+  expandedLegacyAssetKey,
+  expandedLegacyAssetPath,
   itemAssetPath,
   LEGACY_HAIDI_ASSETS,
   wideLegacyAssetKey,
@@ -494,9 +496,18 @@ function queueLegacyKey(scene: Phaser.Scene, key: string, queued: Set<string>): 
 
   const wideKey = wideLegacyAssetKey(key);
   const widePath = wideLegacyAssetPath(key);
-  if (widePath === null || scene.textures.exists(wideKey) || queued.has(wideKey)) return;
-  scene.load.image(wideKey, widePath);
-  queued.add(wideKey);
+  if (widePath !== null && !scene.textures.exists(wideKey) && !queued.has(wideKey)) {
+    scene.load.image(wideKey, widePath);
+    queued.add(wideKey);
+  }
+
+  const expandedKey = expandedLegacyAssetKey(key);
+  const expandedPath = expandedLegacyAssetPath(key);
+  if (expandedPath === null || scene.textures.exists(expandedKey) || queued.has(expandedKey)) {
+    return;
+  }
+  scene.load.image(expandedKey, expandedPath);
+  queued.add(expandedKey);
 }
 
 function queueItemKey(scene: Phaser.Scene, itemId: string, queued: Set<string>): void {

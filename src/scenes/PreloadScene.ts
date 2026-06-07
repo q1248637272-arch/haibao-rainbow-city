@@ -690,6 +690,8 @@ export class PreloadScene extends Phaser.Scene {
       this.load.image(key, fastLegacyAssetPath(path));
       const widePath = wideLegacyAssetPath(key);
       if (widePath !== null) this.load.image(wideLegacyAssetKey(key), widePath);
+      const expandedPath = expandedLegacyAssetPath(key);
+      if (expandedPath !== null) this.load.image(expandedLegacyAssetKey(key), expandedPath);
     }
     for (const item of Object.values(ITEMS)) {
       if (!CORE_ITEM_ASSET_IDS.has(item.id)) continue;
