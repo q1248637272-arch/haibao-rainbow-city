@@ -147,6 +147,16 @@ describe('responsive wide map redraw assets', () => {
     expect(routeMapSource).not.toContain('panWithPointer');
   });
 
+  it('keeps Image2 home response masks synced to the responsive background transform', () => {
+    const homeSceneSource = readFileSync(path.resolve('src/scenes/HomeScene.ts'), 'utf8');
+
+    expect(homeSceneSource).toContain('homeMaskDisplayRect');
+    expect(homeSceneSource).toContain('getDisplayBounds');
+    expect(homeSceneSource).toContain('bounds.left + mask.x * scaleX');
+    expect(homeSceneSource).toContain('containsHomeMaskPoint(mask, hitArea.width, hitArea.height');
+    expect(homeSceneSource).not.toContain("fitMode: 'contain'");
+  });
+
   it('scrolls page-game style only after the player enters the viewport edge band', () => {
     const currentScroll = 0;
     const visibleSize = GAME_WIDTH;

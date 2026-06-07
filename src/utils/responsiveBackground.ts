@@ -9,6 +9,7 @@ export interface ResponsiveMapBackgroundOptions {
   readonly stageAlpha?: number;
   readonly stageWidth?: number;
   readonly stageHeight?: number;
+  readonly fitMode?: 'contain' | 'cover';
   readonly interactive?: boolean;
   readonly useHandCursor?: boolean;
   readonly onPointerUp?: (
@@ -48,16 +49,14 @@ export function createResponsiveMapBackground(
     .setAlpha(options.stageAlpha ?? options.coverAlpha ?? 1);
   const cover = stage;
   let cleanedUp = false;
-  let lastDisplaySize = { width: GAME_WIDTH, height: GAME_HEIGHT };
 
   const getDisplayBounds = (): ResponsiveMapDisplayBounds => {
-    const left = GAME_WIDTH / 2 - lastDisplaySize.width / 2;
-    const top = GAME_HEIGHT / 2 - lastDisplaySize.height / 2;
+    const bounds = stage.getBounds();
     return {
-      left,
-      top,
-      width: lastDisplaySize.width,
-      height: lastDisplaySize.height,
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
     };
   };
 
@@ -78,11 +77,10 @@ export function createResponsiveMapBackground(
     };
     const display = computeResponsiveMapDisplaySize({
       ...displayInput,
-      fitMode: 'cover',
+      fitMode: options.fitMode ?? 'cover',
       ...(options.stageWidth === undefined ? {} : { stageWidth: options.stageWidth }),
       ...(options.stageHeight === undefined ? {} : { stageHeight: options.stageHeight }),
     });
-    lastDisplaySize = display;
     stage
       .setPosition(GAME_WIDTH / 2, GAME_HEIGHT / 2)
       .setDisplaySize(display.width, display.height);

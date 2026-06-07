@@ -40,7 +40,10 @@ import {
   ensureCurrentPlayerWalkAnimation,
   togglePlayerGender,
 } from '@/utils/playerAvatar';
-import { createResponsiveMapBackground } from '@/utils/responsiveBackground';
+import {
+  createResponsiveMapBackground,
+  type ResponsiveMapBackground,
+} from '@/utils/responsiveBackground';
 import type { FurniturePlacement, FurnitureRotation, ItemDefinition, PlayerPet } from '@/types';
 
 const PLAYER_SPEED = 178;
@@ -143,6 +146,21 @@ interface HomeHotspot {
   readonly action: () => void;
 }
 
+interface HomeMaskDisplayRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+interface HomeImageMaskHotspotView {
+  readonly mask: HomeHotspotImageMask;
+  readonly edge: Phaser.GameObjects.Image;
+  readonly label: Phaser.GameObjects.Text;
+  readonly zone: Phaser.GameObjects.Zone;
+  readonly hitArea: Phaser.Geom.Rectangle;
+}
+
 export class HomeScene extends Phaser.Scene {
   private fromScene: string = SceneKey.WORLD;
   private selectedItemId: string | null = null;
@@ -153,6 +171,8 @@ export class HomeScene extends Phaser.Scene {
   private hatcheryPanel: Phaser.GameObjects.Container | null = null;
   private materialPanel: Phaser.GameObjects.Container | null = null;
   private materialPanelExpanded = false;
+  private homeBackground: ResponsiveMapBackground | null = null;
+  private homeImageMaskHotspots: HomeImageMaskHotspotView[] = [];
   private toast: Phaser.GameObjects.Text | null = null;
   private toastTimer: Phaser.Time.TimerEvent | null = null;
   private player!: Phaser.GameObjects.Sprite;
@@ -183,6 +203,8 @@ export class HomeScene extends Phaser.Scene {
     this.furniturePanelOpen = false;
     this.materialPanelExpanded = false;
     this.furniturePage = 0;
+    this.homeBackground = null;
+    this.homeImageMaskHotspots = [];
     this.moveTarget = null;
   }
 
@@ -198,6 +220,7 @@ export class HomeScene extends Phaser.Scene {
     this.setupPlayer();
     this.setupInput();
     this.drawHotspots();
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.refreshHomeImageMaskHotspots, this);
     this.drawTopBar();
     this.refreshMaterialPanel();
     this.refreshFurniturePanel();
@@ -212,6 +235,9 @@ export class HomeScene extends Phaser.Scene {
       this.hatcheryPanel = null;
       this.materialPanel?.destroy();
       this.materialPanel = null;
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshHomeImageMaskHotspots, this);
+      this.homeImageMaskHotspots = [];
+      this.homeBackground = null;
       this.clearToast();
     });
     AudioManager.play('home', undefined, this);
@@ -240,7 +266,7 @@ export class HomeScene extends Phaser.Scene {
     const textureKey = this.textures.exists(HOME_V3_BACKGROUND_KEY)
       ? HOME_V3_BACKGROUND_KEY
       : 'legacy_home_walkable';
-    createResponsiveMapBackground(this, textureKey, {
+    this.homeBackground = createResponsiveMapBackground(this, textureKey, {
       interactive: true,
       onPointerUp: (pointer: Phaser.Input.Pointer) => {
         if (this.hotspotPointerHandled) {
@@ -486,14 +512,15 @@ export class HomeScene extends Phaser.Scene {
       return false;
     }
 
+    const rect = this.homeMaskDisplayRect(mask);
     const edge = this.add
-      .image(mask.x, mask.y, mask.edgeTextureKey)
+      .image(rect.x, rect.y, mask.edgeTextureKey)
       .setOrigin(0)
-      .setDisplaySize(mask.width, mask.height)
+      .setDisplaySize(rect.width, rect.height)
       .setDepth(780)
       .setAlpha(0);
     const label = this.add
-      .text(mask.x + mask.width / 2, Math.max(84, mask.y - 14), hotspot.label, {
+      .text(rect.x + rect.width / 2, Math.max(84, rect.y - 14), hotspot.label, {
         fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
         fontSize: '17px',
         color: '#fff4a8',
@@ -503,11 +530,11 @@ export class HomeScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(782)
       .setAlpha(0);
-    const hitArea = new Phaser.Geom.Rectangle(0, 0, mask.width, mask.height);
+    const hitArea = new Phaser.Geom.Rectangle(0, 0, rect.width, rect.height);
     const contains: Phaser.Types.Input.HitAreaCallback = (_hitArea, x, y) =>
-      this.containsHomeMaskPoint(mask, x, y);
+      this.containsHomeMaskPoint(mask, hitArea.width, hitArea.height, x, y);
     const zone = this.add
-      .zone(mask.x, mask.y, mask.width, mask.height)
+      .zone(rect.x, rect.y, rect.width, rect.height)
       .setOrigin(0)
       .setDepth(783)
       .setInteractive(hitArea, contains);
@@ -521,14 +548,49 @@ export class HomeScene extends Phaser.Scene {
       .on('pointerover', () => draw(true))
       .on('pointerout', () => draw(false))
       .on('pointerup', () => this.activateHotspot(hotspot));
+    this.homeImageMaskHotspots.push({ mask, edge, label, zone, hitArea });
 
     return true;
   }
 
-  private containsHomeMaskPoint(mask: HomeHotspotImageMask, x: number, y: number): boolean {
-    if (x < 0 || y < 0 || x >= mask.width || y >= mask.height) return false;
-    const sampleX = Math.floor(x);
-    const sampleY = Math.floor(y);
+  private homeMaskDisplayRect(mask: HomeHotspotImageMask): HomeMaskDisplayRect {
+    const bounds = this.homeBackground?.getDisplayBounds() ?? {
+      left: 0,
+      top: 0,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+    };
+    const scaleX = bounds.width / GAME_WIDTH;
+    const scaleY = bounds.height / GAME_HEIGHT;
+    return {
+      x: bounds.left + mask.x * scaleX,
+      y: bounds.top + mask.y * scaleY,
+      width: mask.width * scaleX,
+      height: mask.height * scaleY,
+    };
+  }
+
+  private refreshHomeImageMaskHotspots(): void {
+    for (const view of this.homeImageMaskHotspots) {
+      const rect = this.homeMaskDisplayRect(view.mask);
+      view.edge.setPosition(rect.x, rect.y).setDisplaySize(rect.width, rect.height);
+      view.label.setPosition(rect.x + rect.width / 2, Math.max(84, rect.y - 14));
+      view.hitArea.setTo(0, 0, rect.width, rect.height);
+      view.zone.setPosition(rect.x, rect.y).setSize(rect.width, rect.height);
+    }
+  }
+
+  private containsHomeMaskPoint(
+    mask: HomeHotspotImageMask,
+    displayWidth: number,
+    displayHeight: number,
+    x: number,
+    y: number,
+  ): boolean {
+    if (displayWidth <= 0 || displayHeight <= 0) return false;
+    if (x < 0 || y < 0 || x >= displayWidth || y >= displayHeight) return false;
+    const sampleX = Math.min(mask.width - 1, Math.floor((x / displayWidth) * mask.width));
+    const sampleY = Math.min(mask.height - 1, Math.floor((y / displayHeight) * mask.height));
     const alpha = this.textures.getPixelAlpha(sampleX, sampleY, mask.maskTextureKey);
     return Number.isFinite(alpha) && alpha >= mask.alphaTolerance;
   }
