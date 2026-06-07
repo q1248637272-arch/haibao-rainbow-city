@@ -2,6 +2,10 @@ import Phaser from 'phaser';
 
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config/GameConfig';
 import { ENCOUNTERS } from '@/data/encounters';
+import {
+  HOME_HOTSPOT_IMAGE_ASSETS,
+  HOME_V3_BACKGROUND_KEY,
+} from '@/data/homeHotspots';
 import { ITEMS } from '@/data/items';
 import { PETS } from '@/data/pets';
 import {
@@ -96,7 +100,12 @@ const ACTIVITY_KEYS = [
   'activity_trial_tower',
 ] as const;
 
-const HOME_KEYS = ['legacy_home_walkable', 'home_farm_panel', 'object_pet_incubator'] as const;
+const HOME_KEYS = [
+  HOME_V3_BACKGROUND_KEY,
+  'legacy_home_walkable',
+  'home_farm_panel',
+  'object_pet_incubator',
+] as const;
 
 const HOME_ITEM_IDS = [
   'rainbow_pet_egg',
@@ -157,6 +166,7 @@ export function preloadHomeAssets(scene: Phaser.Scene): void {
   preloadAssetSet(scene, {
     label: '正在准备家园...',
     legacyKeys: [...HOME_KEYS, ...BASE_CHARACTER_KEYS],
+    imageAssets: HOME_HOTSPOT_IMAGE_ASSETS,
     itemIds: HOME_ITEM_IDS,
   });
 }
@@ -435,6 +445,7 @@ export function preloadBattleAssets(scene: Phaser.Scene, data: BattleAssetData):
 interface AssetSet {
   readonly label: string;
   readonly legacyKeys?: readonly string[];
+  readonly imageAssets?: Readonly<Record<string, string>>;
   readonly itemIds?: readonly string[];
   readonly spritesheets?: readonly VirtualPlayerAvatarAsset[];
 }
@@ -444,6 +455,9 @@ function preloadAssetSet(scene: Phaser.Scene, set: AssetSet): void {
 
   for (const key of set.legacyKeys ?? []) {
     queueLegacyKey(scene, key, queued);
+  }
+  for (const [key, path] of Object.entries(set.imageAssets ?? {})) {
+    queueImageAsset(scene, key, path, queued);
   }
   for (const itemId of set.itemIds ?? []) {
     queueItemKey(scene, itemId, queued);
@@ -455,6 +469,17 @@ function preloadAssetSet(scene: Phaser.Scene, set: AssetSet): void {
   if (queued.size <= 0) return;
   scene.load.maxParallelDownloads = preloadParallelDownloads();
   showPreloadOverlay(scene, set.label);
+}
+
+function queueImageAsset(
+  scene: Phaser.Scene,
+  key: string,
+  path: string,
+  queued: Set<string>,
+): void {
+  if (scene.textures.exists(key) || queued.has(key)) return;
+  scene.load.image(key, path);
+  queued.add(key);
 }
 
 function queueLegacyKey(scene: Phaser.Scene, key: string, queued: Set<string>): void {

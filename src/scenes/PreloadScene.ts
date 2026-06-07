@@ -175,6 +175,8 @@ export const LEGACY_HAIDI_ASSETS: Readonly<Record<string, string>> = {
   legacy_world_map_full: 'assets/legacy/optimized/title/legacy_world_map_3d_fast.webp',
   legacy_home_walkable:
     'assets/legacy/image2-restored/home/legacy_home_walkable_integrated_v1_image2.png',
+  legacy_home_integrated_v3:
+    'assets/legacy/image2-restored/home-v3/home-integrated-v3-image2.png',
   legacy_farm_walkable: 'assets/legacy/image2-restored/home/legacy_farm_walkable_image2.webp',
   home_farm_panel: 'assets/legacy/image2-restored/home/home_farm_panel_image2.jpg',
   legacy_gym_badge_dojo:

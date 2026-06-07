@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config/GameConfig';
-import { HOME_FIXED_HOTSPOT_IDS, HOME_HOTSPOT_CONTOURS } from '@/data/homeHotspots';
+import {
+  HOME_FIXED_HOTSPOT_IDS,
+  HOME_HOTSPOT_IMAGE_ASSETS,
+  HOME_HOTSPOT_IMAGE_MASKS,
+} from '@/data/homeHotspots';
 import {
   chooseVerifiedContourHitArea,
   containsContourPoint,
@@ -67,26 +73,28 @@ describe('contour hit areas', () => {
     ).toThrow(/could not pass verification/);
   });
 
-  it('keeps home fixed hotspots on explicit verified object contours', () => {
-    expect(Object.keys(HOME_HOTSPOT_CONTOURS).sort()).toEqual(
+  it('keeps home fixed hotspots on Image2 same-source masks', () => {
+    expect(Object.keys(HOME_HOTSPOT_IMAGE_MASKS).sort()).toEqual(
       [...HOME_FIXED_HOTSPOT_IDS].sort(),
     );
 
     for (const id of HOME_FIXED_HOTSPOT_IDS) {
-      const area = HOME_HOTSPOT_CONTOURS[id];
-      const result = verifyContourHitAreaTwice(area, {
-        label: `home.${id}`,
-        minWidth: 24,
-        minHeight: 18,
-        worldBounds: WORLD_BOUNDS,
-      });
-      const bounds = contourBounds(area);
+      const mask = HOME_HOTSPOT_IMAGE_MASKS[id];
+      expect(mask.width, `${id} width`).toBeGreaterThanOrEqual(24);
+      expect(mask.height, `${id} height`).toBeGreaterThanOrEqual(18);
+      expect(mask.x, `${id} x`).toBeGreaterThanOrEqual(0);
+      expect(mask.y, `${id} y`).toBeGreaterThanOrEqual(0);
+      expect(mask.x + mask.width, `${id} right`).toBeLessThanOrEqual(GAME_WIDTH);
+      expect(mask.y + mask.height, `${id} bottom`).toBeLessThanOrEqual(GAME_HEIGHT);
+      expect(mask.alphaTolerance, `${id} alpha tolerance`).toBeGreaterThan(0);
 
-      expect(area.kind, `${id} should use a fixed object contour`).toBe('polygon');
-      expect(result.failures).toEqual([]);
-      expect(result.ok).toBe(true);
-      expect(bounds.width, `${id} width`).toBeGreaterThanOrEqual(24);
-      expect(bounds.height, `${id} height`).toBeGreaterThanOrEqual(18);
+      for (const textureKey of [mask.maskTextureKey, mask.edgeTextureKey]) {
+        const assetPath =
+          HOME_HOTSPOT_IMAGE_ASSETS[textureKey as keyof typeof HOME_HOTSPOT_IMAGE_ASSETS];
+        expect(assetPath, `${id} asset ${textureKey}`).toBeDefined();
+        expect(assetPath).toContain('assets/legacy/image2-restored/home-v3/');
+        expect(existsSync(resolve('public', assetPath))).toBe(true);
+      }
     }
   });
 

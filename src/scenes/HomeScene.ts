@@ -1,13 +1,17 @@
 import Phaser from 'phaser';
 
 import { BACKGROUND_COLOR, GAME_HEIGHT, GAME_WIDTH, SceneKey } from '@/config/GameConfig';
-import { HOME_HOTSPOT_CONTOURS, type HomeHotspotId } from '@/data/homeHotspots';
+import {
+  HOME_HOTSPOT_IMAGE_MASKS,
+  HOME_V3_BACKGROUND_KEY,
+  type HomeHotspotId,
+  type HomeHotspotImageMask,
+} from '@/data/homeHotspots';
 import { ITEMS, getItem, itemsByKind } from '@/data/items';
 import { getPet } from '@/data/pets';
 import { completeActivityTask, consumePendingActivityTask } from '@/systems/ActivityProgress';
 import { AudioManager } from '@/systems/AudioManager';
 import { gameEvents } from '@/systems/EventBus';
-import { contourBounds, type ContourHitArea } from '@/systems/ContourHitArea';
 import {
   HATCHERY_CARE_ACTIONS,
   HATCHERY_REQUIRED_CARE,
@@ -28,7 +32,6 @@ import { createPlayerPet } from '@/systems/PetInstance';
 import { findPixelPath, type PixelPoint } from '@/systems/PixelPathfinding';
 import { PlayerState } from '@/systems/PlayerState';
 import { preloadHomeAssets } from '@/systems/SceneAssetPreloader';
-import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import {
   currentPlayerButtonLabel,
@@ -137,7 +140,6 @@ interface HomeHotspot {
   readonly y: number;
   readonly walkX?: number;
   readonly walkY?: number;
-  readonly contour: ContourHitArea;
   readonly action: () => void;
 }
 
@@ -235,7 +237,10 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private drawHomeMap(): void {
-    createResponsiveMapBackground(this, 'legacy_home_walkable', {
+    const textureKey = this.textures.exists(HOME_V3_BACKGROUND_KEY)
+      ? HOME_V3_BACKGROUND_KEY
+      : 'legacy_home_walkable';
+    createResponsiveMapBackground(this, textureKey, {
       interactive: true,
       onPointerUp: (pointer: Phaser.Input.Pointer) => {
         if (this.hotspotPointerHandled) {
@@ -345,7 +350,6 @@ export class HomeScene extends Phaser.Scene {
         y: 244,
         walkX: 260,
         walkY: 348,
-        contour: HOME_HOTSPOT_CONTOURS['bed-rest'],
         action: () => this.restAtHome(),
       },
       {
@@ -355,7 +359,6 @@ export class HomeScene extends Phaser.Scene {
         y: 132,
         walkX: 330,
         walkY: 268,
-        contour: HOME_HOTSPOT_CONTOURS['books-task'],
         action: () =>
           this.claimDailyReward('books-task', {
             coins: 30,
@@ -371,7 +374,6 @@ export class HomeScene extends Phaser.Scene {
         y: 410,
         walkX: 138,
         walkY: 448,
-        contour: HOME_HOTSPOT_CONTOURS['energy-flower'],
         action: () =>
           this.claimDailyReward('energy-flower', {
             coins: 35,
@@ -390,7 +392,6 @@ export class HomeScene extends Phaser.Scene {
         y: 230,
         walkX: 690,
         walkY: 320,
-        contour: HOME_HOTSPOT_CONTOURS['toy-chest'],
         action: () => this.openAngelChest(),
       },
       {
@@ -400,7 +401,6 @@ export class HomeScene extends Phaser.Scene {
         y: 384,
         walkX: 700,
         walkY: 430,
-        contour: HOME_HOTSPOT_CONTOURS['trade-counter'],
         action: () =>
           this.claimDailyReward('trade-counter', {
             coins: 45,
@@ -419,7 +419,6 @@ export class HomeScene extends Phaser.Scene {
         y: 486,
         walkX: 358,
         walkY: 488,
-        contour: HOME_HOTSPOT_CONTOURS['garden-plot'],
         action: () => this.tendGardenPlot(),
       },
       {
@@ -429,7 +428,6 @@ export class HomeScene extends Phaser.Scene {
         y: 198,
         walkX: 590,
         walkY: 330,
-        contour: HOME_HOTSPOT_CONTOURS['farm-entrance'],
         action: () => this.scene.start(SceneKey.FARM, { fromScene: this.fromScene }),
       },
       {
@@ -439,7 +437,6 @@ export class HomeScene extends Phaser.Scene {
         y: 372,
         walkX: 600,
         walkY: 430,
-        contour: HOME_HOTSPOT_CONTOURS['pet-incubator'],
         action: () => this.openHatcheryPanel(),
       },
       {
@@ -449,7 +446,6 @@ export class HomeScene extends Phaser.Scene {
         y: 226,
         walkX: 454,
         walkY: 330,
-        contour: HOME_HOTSPOT_CONTOURS['purify-table'],
         action: () => this.purifyLegacyDoll(),
       },
       {
@@ -459,7 +455,6 @@ export class HomeScene extends Phaser.Scene {
         y: 186,
         walkX: 306,
         walkY: 282,
-        contour: HOME_HOTSPOT_CONTOURS['build-book'],
         action: () => this.claimBuildReward(),
       },
       {
@@ -469,7 +464,6 @@ export class HomeScene extends Phaser.Scene {
         y: 246,
         walkX: 780,
         walkY: 342,
-        contour: HOME_HOTSPOT_CONTOURS['pet-bed'],
         action: () => this.scene.start(SceneKey.PET_MANAGER, { fromScene: SceneKey.HOME }),
       },
     ];
@@ -478,42 +472,28 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private drawHotspot(hotspot: HomeHotspot): void {
-    const textureKey = homeHotspotTexture(hotspot.id);
-    const hasTexture = Boolean(textureKey && this.textures.exists(textureKey));
-    const hotspotBounds = contourBounds(hotspot.contour);
-    if (hasTexture && textureKey) {
-      const size = Math.max(58, Math.max(hotspotBounds.width, hotspotBounds.height) * 0.72);
-      const shadow = this.add
-        .ellipse(hotspot.x, hotspot.y + 10, size * 0.72, size * 0.24, 0x000000, 0.22)
-        .setDepth(421);
-      const sprite = this.add
-        .image(hotspot.x, hotspot.y, textureKey)
-        .setDisplaySize(size, size)
-        .setOrigin(0.5, 0.78)
-        .setDepth(422);
-      this.tweens.add({
-        targets: sprite,
-        y: sprite.y - 3,
-        duration: 1500 + hotspot.id.length * 38,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-      shadow.setScale(0.96);
+    if (!this.drawImageMaskHotspot(hotspot)) {
+      console.warn(`[HomeScene] missing Image2 mask hotspot assets: ${hotspot.id}`);
+    }
+  }
+
+  private drawImageMaskHotspot(hotspot: HomeHotspot): boolean {
+    const mask = HOME_HOTSPOT_IMAGE_MASKS[hotspot.id];
+    if (
+      !this.textures.exists(mask.maskTextureKey) ||
+      !this.textures.exists(mask.edgeTextureKey)
+    ) {
+      return false;
     }
 
-    const contour = createVerifiedContourZone(this, {
-      area: hotspot.contour,
-      allowGeneratedFallback: false,
-      depth: 783,
-      label: `home.${hotspot.id}`,
-      minWidth: 24,
-      minHeight: 18,
-      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
-    });
-    const marker = this.add.graphics().setDepth(780);
+    const edge = this.add
+      .image(mask.x, mask.y, mask.edgeTextureKey)
+      .setOrigin(0)
+      .setDisplaySize(mask.width, mask.height)
+      .setDepth(780)
+      .setAlpha(0);
     const label = this.add
-      .text(hotspot.x, contour.bounds.top - 16, hotspot.label, {
+      .text(mask.x + mask.width / 2, Math.max(84, mask.y - 14), hotspot.label, {
         fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
         fontSize: '17px',
         color: '#fff4a8',
@@ -523,31 +503,46 @@ export class HomeScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(782)
       .setAlpha(0);
+    const hitArea = new Phaser.Geom.Rectangle(0, 0, mask.width, mask.height);
+    const contains: Phaser.Types.Input.HitAreaCallback = (_hitArea, x, y) =>
+      this.containsHomeMaskPoint(mask, x, y);
+    const zone = this.add
+      .zone(mask.x, mask.y, mask.width, mask.height)
+      .setOrigin(0)
+      .setDepth(783)
+      .setInteractive(hitArea, contains);
+    if (zone.input) zone.input.cursor = 'pointer';
 
     const draw = (active: boolean): void => {
-      marker.clear();
+      edge.setAlpha(active ? 1 : 0);
       label.setAlpha(active ? 1 : 0);
-      drawRaisedContour(marker, contour.area, {
-        color: 0xffd93d,
-        active,
-      });
     };
-    draw(false);
-
-    contour.zone
+    zone
       .on('pointerover', () => draw(true))
       .on('pointerout', () => draw(false))
-      .on('pointerup', () => {
-        this.hotspotPointerHandled = true;
-        this.time.delayedCall(30, () => {
-          this.hotspotPointerHandled = false;
-        });
-        this.walkToAction(
-          hotspot.walkX ?? hotspot.x,
-          hotspot.walkY ?? hotspot.y + 28,
-          hotspot.action,
-        );
-      });
+      .on('pointerup', () => this.activateHotspot(hotspot));
+
+    return true;
+  }
+
+  private containsHomeMaskPoint(mask: HomeHotspotImageMask, x: number, y: number): boolean {
+    if (x < 0 || y < 0 || x >= mask.width || y >= mask.height) return false;
+    const sampleX = Math.floor(x);
+    const sampleY = Math.floor(y);
+    const alpha = this.textures.getPixelAlpha(sampleX, sampleY, mask.maskTextureKey);
+    return Number.isFinite(alpha) && alpha >= mask.alphaTolerance;
+  }
+
+  private activateHotspot(hotspot: HomeHotspot): void {
+    this.hotspotPointerHandled = true;
+    this.time.delayedCall(30, () => {
+      this.hotspotPointerHandled = false;
+    });
+    this.walkToAction(
+      hotspot.walkX ?? hotspot.x,
+      hotspot.walkY ?? hotspot.y + 28,
+      hotspot.action,
+    );
   }
 
   private drawFarmEntranceDoor(hotspot: HomeHotspot): void {
@@ -1829,9 +1824,4 @@ function todayKey(): string {
 
 function playerPetKey(owned: PlayerPet): string {
   return owned.instanceId ?? owned.petId;
-}
-
-function homeHotspotTexture(id: string): string | null {
-  void id;
-  return null;
 }
