@@ -9,7 +9,7 @@ export interface ResponsiveMapBackgroundOptions {
   readonly stageAlpha?: number;
   readonly stageWidth?: number;
   readonly stageHeight?: number;
-  readonly fitMode?: 'contain' | 'cover';
+  readonly fitMode?: 'contain' | 'cover' | 'stretch';
   readonly interactive?: boolean;
   readonly useHandCursor?: boolean;
   readonly onPointerUp?: (

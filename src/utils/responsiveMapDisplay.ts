@@ -6,7 +6,7 @@ export interface ResponsiveMapDisplayInput {
   readonly sourceWidth: number;
   readonly sourceHeight: number;
   readonly isWideRedraw: boolean;
-  readonly fitMode?: 'contain' | 'cover';
+  readonly fitMode?: 'contain' | 'cover' | 'stretch';
   readonly stageWidth?: number;
   readonly stageHeight?: number;
 }
@@ -39,6 +39,13 @@ export function computeResponsiveMapDisplaySize(
   const visibleHeight = Math.max(GAME_HEIGHT, input.visibleHeight);
   const widthScale = visibleWidth / width;
   const heightScale = visibleHeight / height;
+  if (input.fitMode === 'stretch') {
+    return {
+      width: visibleWidth,
+      height: visibleHeight,
+    };
+  }
+
   const rawScale =
     input.fitMode === 'contain'
       ? Math.min(widthScale, heightScale)

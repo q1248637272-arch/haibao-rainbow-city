@@ -133,6 +133,21 @@ describe('responsive wide map redraw assets', () => {
     }
   });
 
+  it('can stretch a complete map image to fill an expanded viewport without side gaps', () => {
+    const visibleWidth = Math.round((2048 / 922) * GAME_HEIGHT);
+    const stretch = computeResponsiveMapDisplaySize({
+      visibleWidth,
+      visibleHeight: GAME_HEIGHT,
+      sourceWidth: 1536,
+      sourceHeight: 1024,
+      isWideRedraw: false,
+      fitMode: 'stretch',
+    });
+
+    expect(stretch.width).toBe(visibleWidth);
+    expect(stretch.height).toBe(GAME_HEIGHT);
+  });
+
   it('keeps legacy map cameras independent from pointer movement', () => {
     const responsiveBackgroundSource = readFileSync(
       path.resolve('src/utils/responsiveBackground.ts'),
@@ -154,6 +169,7 @@ describe('responsive wide map redraw assets', () => {
     expect(homeSceneSource).toContain('getDisplayBounds');
     expect(homeSceneSource).toContain('bounds.left + mask.x * scaleX');
     expect(homeSceneSource).toContain('containsHomeMaskPoint(mask, hitArea.width, hitArea.height');
+    expect(homeSceneSource).toContain("fitMode: 'stretch'");
     expect(homeSceneSource).not.toContain("fitMode: 'contain'");
   });
 

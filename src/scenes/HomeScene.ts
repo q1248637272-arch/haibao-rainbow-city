@@ -267,6 +267,7 @@ export class HomeScene extends Phaser.Scene {
       ? HOME_V3_BACKGROUND_KEY
       : 'legacy_home_walkable';
     this.homeBackground = createResponsiveMapBackground(this, textureKey, {
+      fitMode: 'stretch',
       interactive: true,
       onPointerUp: (pointer: Phaser.Input.Pointer) => {
         if (this.hotspotPointerHandled) {
