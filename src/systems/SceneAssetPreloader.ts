@@ -8,6 +8,7 @@ import {
 } from '@/data/homeHotspots';
 import { ITEMS } from '@/data/items';
 import { PETS } from '@/data/pets';
+import { ROUTE_MAP_HOTSPOT_IMAGE_ASSETS } from '@/data/routeMapHotspots';
 import {
   fastLegacyAssetPath,
   itemAssetPath,
@@ -159,6 +160,7 @@ export function preloadRouteMapAssets(scene: Phaser.Scene): void {
   preloadAssetSet(scene, {
     label: '正在展开大地图...',
     legacyKeys: ['legacy_world_map_full'],
+    imageAssets: ROUTE_MAP_HOTSPOT_IMAGE_ASSETS,
   });
 }
 

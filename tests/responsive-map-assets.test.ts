@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config/GameConfig';
+import { ROUTE_MAP_SOURCE_SIZE } from '@/data/routeMapHotspots';
 import {
   computeEdgeFollowCameraScroll,
   computeResponsiveMapDisplaySize,
@@ -75,6 +76,15 @@ describe('responsive wide map redraw assets', () => {
     expect(existsSync(mainMapFast)).toBe(true);
     expect(readFileSync(mainMapSource).byteLength).toBeGreaterThan(3_000_000);
     expect(readFileSync(mainMapFast).byteLength).toBeGreaterThan(150_000);
+  });
+
+  it('keeps the route-map mask coordinate space tied to the native wide redraw', () => {
+    const routeMapAssetPath = WIDE_LEGACY_ASSET_PATHS.legacy_world_map_full;
+    expect(routeMapAssetPath).toBeDefined();
+    if (!routeMapAssetPath) throw new Error('route map wide redraw path is missing');
+    const routeMapSource = path.resolve('public', routeMapAssetPath);
+
+    expect(readPngSize(routeMapSource)).toEqual(ROUTE_MAP_SOURCE_SIZE);
   });
 
   it('allows ultrawide map redraws to shrink so the whole image fits phone landscape cameras', () => {
@@ -176,11 +186,19 @@ describe('responsive wide map redraw assets', () => {
     const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
 
     expect(routeMapSource).toContain("fitMode: 'stretch'");
+    expect(routeMapSource).toContain('ROUTE_MAP_HOTSPOTS');
+    expect(routeMapSource).toContain('ROUTE_MAP_SOURCE_SIZE');
     expect(routeMapSource).toContain('routeMapDisplayBounds');
+    expect(routeMapSource).toContain('routeMaskDisplayRect');
     expect(routeMapSource).toContain('getDisplayBounds');
-    expect(routeMapSource).toContain('bounds.left + hotspot.x * scaleX');
+    expect(routeMapSource).toContain('bounds.left + mask.x * scaleX');
+    expect(routeMapSource).toContain('containsRouteMaskPoint(mask, hitArea.width, hitArea.height');
+    expect(routeMapSource).toContain('getPixelAlpha');
     expect(routeMapSource).toContain('this.routeMapPoint(sourceStart.x, sourceStart.y)');
-    expect(routeMapSource).toContain('allowGeneratedFallback: false');
+    expect(routeMapSource).not.toContain('createVerifiedContourZone');
+    expect(routeMapSource).not.toContain('drawRaisedContour');
+    expect(routeMapSource).not.toContain('allowGeneratedFallback');
+    expect(routeMapSource).not.toContain("kind: 'ellipse'");
     expect(routeMapSource).not.toContain("kind: 'polygon'");
     expect(routeMapSource).not.toContain("fitMode: 'contain'");
   });

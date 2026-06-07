@@ -3,184 +3,34 @@ import Phaser from 'phaser';
 import { BACKGROUND_COLOR, GAME_HEIGHT, GAME_WIDTH, SceneKey } from '@/config/GameConfig';
 import { recommendedLevelLabel } from '@/data/locationDifficulty';
 import { getPet } from '@/data/pets';
+import {
+  ROUTE_MAP_HOTSPOTS,
+  ROUTE_MAP_HOTSPOT_IMAGE_MASKS,
+  ROUTE_MAP_SOURCE_SIZE,
+  type RouteMapHotspotDefinition,
+  type RouteMapHotspotImageMask,
+} from '@/data/routeMapHotspots';
 import { AudioManager } from '@/systems/AudioManager';
 import { preloadRouteMapAssets } from '@/systems/SceneAssetPreloader';
-import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
-import { createPortalFlash } from '@/ui/PortalFlash';
 import {
   createResponsiveMapBackground,
   type ResponsiveMapBackground,
   type ResponsiveMapDisplayBounds,
 } from '@/utils/responsiveBackground';
 
-import type { LegacyLocationId } from './LegacyContent';
-
-interface RouteMapHotspot {
-  readonly label: string;
-  readonly x: number;
-  readonly y: number;
-  readonly labelX?: number;
-  readonly labelY?: number;
-  readonly radiusX: number;
-  readonly radiusY: number;
-  readonly targetScene?: string;
-  readonly locationId?: LegacyLocationId;
-  readonly message?: string;
-}
-
 interface RouteMapHotspotView {
-  readonly objects: readonly Phaser.GameObjects.GameObject[];
+  readonly hotspot: RouteMapHotspotDefinition;
+  readonly mask: RouteMapHotspotImageMask;
+  readonly edge: Phaser.GameObjects.Image;
+  readonly labelBg: Phaser.GameObjects.Graphics;
+  readonly labelText: Phaser.GameObjects.Text;
+  readonly challengeText: Phaser.GameObjects.Text;
+  readonly zone: Phaser.GameObjects.Zone;
+  readonly hitArea: Phaser.Geom.Rectangle;
 }
 
 const MAP_IMAGE_KEY = 'legacy_world_map_full';
-const HOTSPOTS: readonly RouteMapHotspot[] = [
-  {
-    label: '潮汐试炼场',
-    x: 588,
-    y: 424,
-    labelX: 608,
-    labelY: 372,
-    radiusX: 86,
-    radiusY: 52,
-    locationId: 'tide_playground',
-  },
-  {
-    label: '彩虹城中心',
-    x: 480,
-    y: 318,
-    labelY: 388,
-    radiusX: 96,
-    radiusY: 64,
-    locationId: 'center',
-  },
-  {
-    label: '图书馆',
-    x: 156,
-    y: 148,
-    labelX: 168,
-    labelY: 218,
-    radiusX: 96,
-    radiusY: 58,
-    locationId: 'library',
-  },
-  {
-    label: '实验室',
-    x: 478,
-    y: 124,
-    labelY: 188,
-    radiusX: 100,
-    radiusY: 56,
-    locationId: 'lab',
-  },
-  {
-    label: '魔法学院',
-    x: 752,
-    y: 146,
-    labelY: 220,
-    radiusX: 100,
-    radiusY: 58,
-    locationId: 'magic_school',
-  },
-  {
-    label: '迷宫入口',
-    x: 128,
-    y: 300,
-    labelX: 140,
-    labelY: 366,
-    radiusX: 98,
-    radiusY: 58,
-    locationId: 'maze',
-  },
-  {
-    label: '玩偶基地',
-    x: 806,
-    y: 302,
-    labelX: 816,
-    labelY: 370,
-    radiusX: 78,
-    radiusY: 54,
-    locationId: 'doll_base',
-  },
-  {
-    label: '飞船内部',
-    x: 132,
-    y: 478,
-    labelY: 548,
-    radiusX: 106,
-    radiusY: 62,
-    locationId: 'spaceship',
-  },
-  {
-    label: '彩贝赌场',
-    x: 812,
-    y: 490,
-    labelX: 850,
-    labelY: 430,
-    radiusX: 92,
-    radiusY: 58,
-    locationId: 'casino',
-  },
-  {
-    label: '洗浴中心',
-    x: 712,
-    y: 456,
-    labelX: 705,
-    labelY: 395,
-    radiusX: 76,
-    radiusY: 48,
-    locationId: 'bath_center',
-  },
-  {
-    label: '珊瑚集市',
-    x: 394,
-    y: 456,
-    labelX: 398,
-    labelY: 525,
-    radiusX: 86,
-    radiusY: 52,
-    locationId: 'coral_market',
-  },
-  {
-    label: '星辉观测台',
-    x: 628,
-    y: 112,
-    labelX: 625,
-    labelY: 174,
-    radiusX: 88,
-    radiusY: 48,
-    locationId: 'star_observatory',
-  },
-  {
-    label: '风暴遗迹',
-    x: 288,
-    y: 566,
-    labelX: 296,
-    labelY: 502,
-    radiusX: 92,
-    radiusY: 50,
-    locationId: 'storm_ruins',
-  },
-  {
-    label: '能量田',
-    x: 748,
-    y: 586,
-    labelY: 525,
-    radiusX: 112,
-    radiusY: 64,
-    locationId: 'energy_field',
-  },
-  {
-    label: '水晶矿洞',
-    x: 516,
-    y: 574,
-    labelX: 520,
-    labelY: 604,
-    radiusX: 112,
-    radiusY: 66,
-    locationId: 'energy_cave',
-  },
-];
 
 export class LegacyRouteMapScene extends Phaser.Scene {
   private fromScene: string = SceneKey.WORLD;
@@ -288,7 +138,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   private refreshRouteLayout(): void {
     this.routeBackground?.refresh();
     this.navScrim?.setSize(this.routeViewportWidth(), 88);
-    this.rebuildRouteHotspots();
+    this.refreshRouteHotspots();
   }
 
   private routeViewportWidth(): number {
@@ -297,19 +147,18 @@ export class LegacyRouteMapScene extends Phaser.Scene {
 
   private rebuildRouteHotspots(): void {
     this.destroyRouteHotspots();
-    HOTSPOTS.forEach((hotspot) => this.createMapHotspot(hotspot));
+    ROUTE_MAP_HOTSPOTS.forEach((hotspot) => this.createMapHotspot(hotspot));
   }
 
   private destroyRouteHotspots(): void {
     this.clearRoutePreview();
     for (const view of this.routeHotspotViews) {
-      for (const object of view.objects) {
-        if (object instanceof Phaser.GameObjects.Container) {
-          this.tweens.killTweensOf(object.list);
-        }
-        this.tweens.killTweensOf(object);
-        object.destroy();
-      }
+      this.tweens.killTweensOf(view.edge);
+      view.edge.destroy();
+      view.labelBg.destroy();
+      view.labelText.destroy();
+      view.challengeText.destroy();
+      view.zone.destroy();
     }
     this.routeHotspotViews = [];
   }
@@ -328,63 +177,59 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   private routeMapPoint(x: number, y: number): { readonly x: number; readonly y: number } {
     const bounds = this.routeMapDisplayBounds();
     return {
-      x: bounds.left + x * (bounds.width / GAME_WIDTH),
-      y: bounds.top + y * (bounds.height / GAME_HEIGHT),
+      x: bounds.left + x * (bounds.width / ROUTE_MAP_SOURCE_SIZE.width),
+      y: bounds.top + y * (bounds.height / ROUTE_MAP_SOURCE_SIZE.height),
     };
   }
 
-  private routeMapEllipse(hotspot: RouteMapHotspot): {
+  private routeMaskDisplayRect(mask: RouteMapHotspotImageMask): {
     readonly x: number;
     readonly y: number;
-    readonly rx: number;
-    readonly ry: number;
+    readonly width: number;
+    readonly height: number;
   } {
     const bounds = this.routeMapDisplayBounds();
-    const scaleX = bounds.width / GAME_WIDTH;
-    const scaleY = bounds.height / GAME_HEIGHT;
+    const scaleX = bounds.width / ROUTE_MAP_SOURCE_SIZE.width;
+    const scaleY = bounds.height / ROUTE_MAP_SOURCE_SIZE.height;
     return {
-      x: bounds.left + hotspot.x * scaleX,
-      y: bounds.top + hotspot.y * scaleY,
-      rx: hotspot.radiusX * scaleX,
-      ry: hotspot.radiusY * scaleY,
+      x: bounds.left + mask.x * scaleX,
+      y: bounds.top + mask.y * scaleY,
+      width: mask.width * scaleX,
+      height: mask.height * scaleY,
     };
   }
 
-  private createMapHotspot(hotspot: RouteMapHotspot): void {
-    const ellipse = this.routeMapEllipse(hotspot);
-    const contour = createVerifiedContourZone(this, {
-      area: {
-        kind: 'ellipse',
-        x: ellipse.x,
-        y: ellipse.y,
-        rx: ellipse.rx,
-        ry: ellipse.ry,
-      },
-      allowGeneratedFallback: false,
-      depth: 43,
-      label: `route-map.${hotspot.label}`,
-      minWidth: 40,
-      minHeight: 28,
-    });
-    const flash = createPortalFlash(this, ellipse.x, ellipse.y, {
-      radius: Math.min(34, Math.max(24, ellipse.ry * 0.42)),
-      depth: 39,
-      yScale: 0.72,
-    });
-    const marker = this.add.graphics().setDepth(40);
+  private routeLabelPoint(mask: RouteMapHotspotImageMask): {
+    readonly x: number;
+    readonly y: number;
+  } {
+    const bounds = this.routeMapDisplayBounds();
+    const raw = this.routeMapPoint(mask.labelX, mask.labelY);
+    return {
+      x: Phaser.Math.Clamp(raw.x, bounds.left + 56, bounds.left + bounds.width - 56),
+      y: Phaser.Math.Clamp(raw.y, Math.max(104, bounds.top + 28), bounds.top + bounds.height - 40),
+    };
+  }
+
+  private createMapHotspot(hotspot: RouteMapHotspotDefinition): void {
+    const mask = ROUTE_MAP_HOTSPOT_IMAGE_MASKS[hotspot.id];
+    if (!this.textures.exists(mask.maskTextureKey) || !this.textures.exists(mask.edgeTextureKey)) {
+      console.warn(`[LegacyRouteMapScene] missing route-map mask hotspot assets: ${hotspot.id}`);
+      return;
+    }
+
+    const rect = this.routeMaskDisplayRect(mask);
+    const edge = this.add
+      .image(rect.x, rect.y, mask.edgeTextureKey)
+      .setOrigin(0)
+      .setDisplaySize(rect.width, rect.height)
+      .setDepth(40)
+      .setAlpha(0)
+      .setBlendMode(Phaser.BlendModes.ADD);
     const labelBg = this.add.graphics().setDepth(41);
-    const autoLabelY =
-      hotspot.y + hotspot.radiusY + 36 > GAME_HEIGHT
-        ? hotspot.y - hotspot.radiusY - 24
-        : hotspot.y + hotspot.radiusY + 18;
-    const labelPoint = this.routeMapPoint(
-      hotspot.labelX ?? hotspot.x,
-      hotspot.labelY ?? autoLabelY,
-    );
-    const labelX = labelPoint.x;
-    const labelY = labelPoint.y;
+    const labelPoint = this.routeLabelPoint(mask);
     const labelText = this.add
-      .text(labelX, labelY, hotspot.label, {
+      .text(labelPoint.x, labelPoint.y, hotspot.label, {
         fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
         fontSize: '16px',
         color: '#ffffff',
@@ -394,85 +239,132 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(42);
-    const labelWidth = Math.max(92, Math.min(148, labelText.width + 22));
-    const labelHeight = 28;
-    const challengeText = hotspot.locationId
-      ? this.add
-          .text(labelX, labelY + 24, recommendedLevelLabel(hotspot.locationId), {
-            fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '12px',
-            color: '#fff4a8',
-            stroke: '#1b1b3a',
-            strokeThickness: 3,
-          })
-          .setOrigin(0.5)
-          .setDepth(42)
-      : null;
+    const challengeText = this.add
+      .text(labelPoint.x, labelPoint.y + 24, recommendedLevelLabel(hotspot.locationId), {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '12px',
+        color: '#fff4a8',
+        stroke: '#1b1b3a',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(42);
+    const hitArea = new Phaser.Geom.Rectangle(0, 0, rect.width, rect.height);
+    const contains: Phaser.Types.Input.HitAreaCallback = (_hitArea, x, y) =>
+      this.containsRouteMaskPoint(mask, hitArea.width, hitArea.height, x, y);
+    const zone = this.add
+      .zone(rect.x, rect.y, rect.width, rect.height)
+      .setOrigin(0)
+      .setDepth(43)
+      .setInteractive(hitArea, contains);
+    if (zone.input) zone.input.cursor = 'pointer';
 
-    const drawHover = (active: boolean): void => {
-      marker.clear();
-      labelBg.clear();
-      labelBg.fillStyle(active ? 0xff9f2f : 0x1599c8, 0.94);
-      labelBg.lineStyle(2, 0xffffff, 0.96);
-      labelBg.fillRoundedRect(
-        labelX - labelWidth / 2,
-        labelY - labelHeight / 2,
-        labelWidth,
-        labelHeight,
-        7,
-      );
-      labelBg.strokeRoundedRect(
-        labelX - labelWidth / 2,
-        labelY - labelHeight / 2,
-        labelWidth,
-        labelHeight,
-        7,
-      );
-      if (challengeText) {
-        const challengeWidth = Math.max(82, challengeText.width + 18);
-        labelBg.fillStyle(0x0b3768, 0.84);
-        labelBg.lineStyle(1, 0xffffff, 0.58);
-        labelBg.fillRoundedRect(labelX - challengeWidth / 2, labelY + 12, challengeWidth, 22, 6);
-        labelBg.strokeRoundedRect(labelX - challengeWidth / 2, labelY + 12, challengeWidth, 22, 6);
-      }
-      drawRaisedContour(marker, contour.area, {
-        color: active ? 0xffd93d : 0x8fe8ff,
-        active,
-        fillAlpha: active ? 0.16 : 0.045,
-      });
+    const view: RouteMapHotspotView = {
+      hotspot,
+      mask,
+      edge,
+      labelBg,
+      labelText,
+      challengeText,
+      zone,
+      hitArea,
     };
-    drawHover(false);
+    this.drawRouteHotspotState(view, false);
 
-    contour.zone
+    zone
       .on('pointerover', () => {
-        drawHover(true);
+        this.drawRouteHotspotState(view, true);
         this.drawRoutePreview(hotspot);
       })
       .on('pointerout', () => {
-        drawHover(false);
+        this.drawRouteHotspotState(view, false);
         this.clearRoutePreview();
       })
       .on('pointerup', () => this.openHotspot(hotspot));
-    this.routeHotspotViews.push({
-      objects: [
-        contour.zone,
-        flash,
-        marker,
-        labelBg,
-        labelText,
-        ...(challengeText ? [challengeText] : []),
-      ],
-    });
+    this.routeHotspotViews.push(view);
   }
 
-  private drawRoutePreview(hotspot: RouteMapHotspot): void {
+  private refreshRouteHotspots(): void {
+    this.clearRoutePreview();
+    for (const view of this.routeHotspotViews) {
+      const rect = this.routeMaskDisplayRect(view.mask);
+      view.edge.setPosition(rect.x, rect.y).setDisplaySize(rect.width, rect.height);
+      view.hitArea.setTo(0, 0, rect.width, rect.height);
+      view.zone.setPosition(rect.x, rect.y).setSize(rect.width, rect.height);
+      this.drawRouteHotspotState(view, false);
+    }
+  }
+
+  private drawRouteHotspotState(view: RouteMapHotspotView, active: boolean): void {
+    const labelPoint = this.routeLabelPoint(view.mask);
+    const labelWidth = Math.max(92, Math.min(156, view.labelText.width + 22));
+    const labelHeight = 28;
+
+    view.edge.setAlpha(active ? 0.95 : 0);
+    view.labelText.setPosition(labelPoint.x, labelPoint.y);
+    view.challengeText.setPosition(labelPoint.x, labelPoint.y + 24);
+    view.labelBg.clear();
+    view.labelBg.fillStyle(active ? 0xff9f2f : 0x1599c8, 0.94);
+    view.labelBg.lineStyle(2, 0xffffff, 0.96);
+    view.labelBg.fillRoundedRect(
+      labelPoint.x - labelWidth / 2,
+      labelPoint.y - labelHeight / 2,
+      labelWidth,
+      labelHeight,
+      7,
+    );
+    view.labelBg.strokeRoundedRect(
+      labelPoint.x - labelWidth / 2,
+      labelPoint.y - labelHeight / 2,
+      labelWidth,
+      labelHeight,
+      7,
+    );
+
+    const challengeWidth = Math.max(82, Math.min(148, view.challengeText.width + 18));
+    view.labelBg.fillStyle(0x0b3768, 0.84);
+    view.labelBg.lineStyle(1, 0xffffff, 0.58);
+    view.labelBg.fillRoundedRect(
+      labelPoint.x - challengeWidth / 2,
+      labelPoint.y + 12,
+      challengeWidth,
+      22,
+      6,
+    );
+    view.labelBg.strokeRoundedRect(
+      labelPoint.x - challengeWidth / 2,
+      labelPoint.y + 12,
+      challengeWidth,
+      22,
+      6,
+    );
+  }
+
+  private containsRouteMaskPoint(
+    mask: RouteMapHotspotImageMask,
+    displayWidth: number,
+    displayHeight: number,
+    x: number,
+    y: number,
+  ): boolean {
+    if (displayWidth <= 0 || displayHeight <= 0) return false;
+    if (x < 0 || y < 0 || x >= displayWidth || y >= displayHeight) return false;
+    const sampleX = Math.min(mask.width - 1, Math.floor((x / displayWidth) * mask.width));
+    const sampleY = Math.min(mask.height - 1, Math.floor((y / displayHeight) * mask.height));
+    const alpha = this.textures.getPixelAlpha(sampleX, sampleY, mask.maskTextureKey);
+    return Number.isFinite(alpha) && alpha >= mask.alphaTolerance;
+  }
+
+  private drawRoutePreview(hotspot: RouteMapHotspotDefinition): void {
     this.clearRoutePreview();
     const route = this.add.graphics().setDepth(38);
-    const sourceStart = { x: 480, y: 318 };
-    const sourceEnd = { x: hotspot.x, y: hotspot.y };
+    const centerMask = ROUTE_MAP_HOTSPOT_IMAGE_MASKS.center;
+    const targetMask = ROUTE_MAP_HOTSPOT_IMAGE_MASKS[hotspot.id];
+    const sourceStart = { x: centerMask.centerX, y: centerMask.centerY };
+    const sourceEnd = { x: targetMask.centerX, y: targetMask.centerY };
     const sourceControl = {
       x: (sourceStart.x + sourceEnd.x) / 2,
-      y: Math.min(sourceStart.y, sourceEnd.y) - 54,
+      y: Math.min(sourceStart.y, sourceEnd.y) - 72,
     };
     const start = this.routeMapPoint(sourceStart.x, sourceStart.y);
     const end = this.routeMapPoint(sourceEnd.x, sourceEnd.y);
@@ -525,17 +417,9 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     this.routePreview = null;
   }
 
-  private openHotspot(hotspot: RouteMapHotspot): void {
+  private openHotspot(hotspot: RouteMapHotspotDefinition): void {
     this.clearRoutePreview();
-    if (hotspot.locationId) {
-      this.scene.start(SceneKey.LEGACY_LOCATION, { locationId: hotspot.locationId });
-      return;
-    }
-    if (hotspot.targetScene) {
-      this.scene.start(hotspot.targetScene);
-      return;
-    }
-    this.showToast(hotspot.message ?? '这里还在修复中。');
+    this.scene.start(SceneKey.LEGACY_LOCATION, { locationId: hotspot.locationId });
   }
 
   private createNavButton(x: number, y: number, label: string, onClick: () => void): void {

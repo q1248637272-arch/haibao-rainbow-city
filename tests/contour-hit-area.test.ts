@@ -9,6 +9,12 @@ import {
   HOME_HOTSPOT_IMAGE_MASKS,
 } from '@/data/homeHotspots';
 import {
+  ROUTE_MAP_HOTSPOT_IDS,
+  ROUTE_MAP_HOTSPOT_IMAGE_ASSETS,
+  ROUTE_MAP_HOTSPOT_IMAGE_MASKS,
+  ROUTE_MAP_SOURCE_SIZE,
+} from '@/data/routeMapHotspots';
+import {
   chooseVerifiedContourHitArea,
   containsContourPoint,
   contourBounds,
@@ -93,6 +99,37 @@ describe('contour hit areas', () => {
           HOME_HOTSPOT_IMAGE_ASSETS[textureKey as keyof typeof HOME_HOTSPOT_IMAGE_ASSETS];
         expect(assetPath, `${id} asset ${textureKey}`).toBeDefined();
         expect(assetPath).toContain('assets/legacy/image2-restored/home-v3/');
+        expect(existsSync(resolve('public', assetPath))).toBe(true);
+      }
+    }
+  });
+
+  it('keeps route-map hotspots on same-source wide-image masks', () => {
+    expect(Object.keys(ROUTE_MAP_HOTSPOT_IMAGE_MASKS).sort()).toEqual(
+      [...ROUTE_MAP_HOTSPOT_IDS].sort(),
+    );
+
+    for (const id of ROUTE_MAP_HOTSPOT_IDS) {
+      const mask = ROUTE_MAP_HOTSPOT_IMAGE_MASKS[id];
+      expect(mask.width, `${id} width`).toBeGreaterThanOrEqual(24);
+      expect(mask.height, `${id} height`).toBeGreaterThanOrEqual(18);
+      expect(mask.x, `${id} x`).toBeGreaterThanOrEqual(0);
+      expect(mask.y, `${id} y`).toBeGreaterThanOrEqual(0);
+      expect(mask.x + mask.width, `${id} right`).toBeLessThanOrEqual(ROUTE_MAP_SOURCE_SIZE.width);
+      expect(mask.y + mask.height, `${id} bottom`).toBeLessThanOrEqual(
+        ROUTE_MAP_SOURCE_SIZE.height,
+      );
+      expect(mask.centerX, `${id} centerX`).toBeGreaterThanOrEqual(mask.x);
+      expect(mask.centerX, `${id} centerX right`).toBeLessThanOrEqual(mask.x + mask.width);
+      expect(mask.centerY, `${id} centerY`).toBeGreaterThanOrEqual(mask.y);
+      expect(mask.centerY, `${id} centerY bottom`).toBeLessThanOrEqual(mask.y + mask.height);
+      expect(mask.alphaTolerance, `${id} alpha tolerance`).toBeGreaterThan(0);
+
+      for (const textureKey of [mask.maskTextureKey, mask.edgeTextureKey]) {
+        const assetPath =
+          ROUTE_MAP_HOTSPOT_IMAGE_ASSETS[textureKey as keyof typeof ROUTE_MAP_HOTSPOT_IMAGE_ASSETS];
+        expect(assetPath, `${id} asset ${textureKey}`).toBeDefined();
+        expect(assetPath).toContain('assets/legacy/image2-restored/route-map-v3/');
         expect(existsSync(resolve('public', assetPath))).toBe(true);
       }
     }
