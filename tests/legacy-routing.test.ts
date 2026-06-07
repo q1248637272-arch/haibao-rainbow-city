@@ -81,6 +81,7 @@ describe('legacy map routing', () => {
 
   it('rewards one daily old-location patrol from successful wild encounters', () => {
     const sceneSource = readFileSync(path.resolve('src/scenes/LegacyLocationScene.ts'), 'utf8');
+    const patrolSource = readFileSync(path.resolve('src/systems/LegacyPatrol.ts'), 'utf8');
 
     expect(sceneSource).toContain('legacyPatrolRewardKey');
     expect(sceneSource).toContain('legacyPatrolRewardForLocation');
@@ -91,6 +92,21 @@ describe('legacy map routing', () => {
     expect(sceneSource).toContain('PlayerState.addCoins(reward.coins)');
     expect(sceneSource).toContain('PlayerState.addItem(reward.itemId, reward.itemQuantity)');
     expect(sceneSource).toContain('const patrolMessage = this.tryClaimLegacyPatrolReward();');
+    expect(patrolSource).toContain('LEGACY_REWARD_SAVE_KEY');
+    expect(patrolSource).toContain('legacyLocationHasPatrol');
+  });
+
+  it('surfaces old-location patrol intel on the legacy route map without changing masks', () => {
+    const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
+
+    expect(routeMapSource).toContain('drawRouteIntelPanel');
+    expect(routeMapSource).toContain('routeChallengeLabel');
+    expect(routeMapSource).toContain('legacyPatrolRewardSummary');
+    expect(routeMapSource).toContain('hasClaimedLegacyPatrolToday');
+    expect(routeMapSource).toContain('containsRouteMaskPoint');
+    expect(routeMapSource).not.toContain('createVerifiedContourZone');
+    expect(routeMapSource).not.toContain("kind: 'polygon'");
+    expect(routeMapSource).not.toContain("kind: 'ellipse'");
   });
 
   it('keeps cross-map exits as portals instead of unrelated prop sprites', () => {

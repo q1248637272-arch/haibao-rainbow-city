@@ -31,6 +31,16 @@ import { ensurePetTexture } from '@/utils/placeholder';
 import { createResponsiveMapBackground } from '@/utils/responsiveBackground';
 import { isWildBattleBlocked, toggleWildBattleBlocked } from '@/systems/WildBattleSettings';
 import {
+  hasClaimedLegacyPatrolToday,
+  hasClaimedLegacyRewardToday,
+  legacyDailyRewardKey,
+  legacyLocationHasPatrol,
+  legacyPatrolRewardForLocation,
+  legacyPatrolRewardKey,
+  legacyTodayKey,
+  markLegacyRewardClaimedToday,
+} from '@/systems/LegacyPatrol';
+import {
   currentPlayerButtonLabel,
   currentPlayerSheetKey,
   currentPlayerWalkAnimKey,
@@ -57,16 +67,6 @@ const LOCATION_ROAMING_PET_COUNT = 1;
 const LOCATION_VIRTUAL_PLAYER_COUNT = 2;
 const ENCOUNTER_RETURN_COOLDOWN_MS = 1800;
 const ENCOUNTER_RESUME_MOVE_DISTANCE = 28;
-const LEGACY_REWARD_SAVE_KEY = 'hbcc:legacy-location-rewards:v1';
-const LEGACY_PATROL_ITEM_ID = 'exp_candy';
-const LEGACY_PATROL_ITEM_LABEL = '经验糖';
-
-interface LegacyPatrolReward {
-  readonly coins: number;
-  readonly itemId: string;
-  readonly itemLabel: string;
-  readonly itemQuantity: number;
-}
 
 interface WalkTarget {
   readonly x: number;
@@ -450,13 +450,13 @@ export class LegacyLocationScene extends Phaser.Scene {
 
   private hotspotStatusSuffix(hotspot: LegacyLocationHotspot): string {
     if (hotspot.action.kind === 'battle' && hotspot.action.encounterZoneId) {
-      return this.isPatrolRewardClaimedToday() ? ' · 巡护已完成' : ' · 巡护未完成';
+      return hasClaimedLegacyPatrolToday(this.locationId) ? ' · 巡护已完成' : ' · 巡护未完成';
     }
 
     const reward = hotspot.action.reward;
     if (!reward?.oncePerDay) return '';
-    const key = `${this.locationId}:${hotspot.action.label}`;
-    return this.hasClaimedLegacyRewardToday(key) ? ' · 今日已领' : ' · 每日';
+    const key = legacyDailyRewardKey(this.locationId, hotspot.action.label);
+    return hasClaimedLegacyRewardToday(key) ? ' · 今日已领' : ' · 每日';
   }
 
   private drawNpc(npc: LegacyLocationNpc): void {
@@ -607,7 +607,7 @@ export class LegacyLocationScene extends Phaser.Scene {
       count: virtualPlayerBudget(LOCATION_VIRTUAL_PLAYER_COUNT),
       minLevel: diff.wildLevelRange[0],
       maxLevel: Math.max(diff.wildLevelRange[1], diff.recommended + 1),
-      seed: `${this.locationId}:${todayKey()}`,
+      seed: `${this.locationId}:${legacyTodayKey()}`,
     });
 
     for (const data of players) {
@@ -1023,8 +1023,8 @@ export class LegacyLocationScene extends Phaser.Scene {
       return;
     }
 
-    const key = `${this.locationId}:${action.label}`;
-    if (reward.oncePerDay && this.hasClaimedLegacyRewardToday(key)) {
+    const key = legacyDailyRewardKey(this.locationId, action.label);
+    if (reward.oncePerDay && hasClaimedLegacyRewardToday(key)) {
       this.showToast(reward.claimedMessage ?? '今天已经领取过了。');
       return;
     }
@@ -1036,53 +1036,20 @@ export class LegacyLocationScene extends Phaser.Scene {
       PlayerState.addItem(item.itemId, item.quantity);
     }
     if (reward.oncePerDay) {
-      this.markLegacyRewardClaimedToday(key);
+      markLegacyRewardClaimedToday(key);
     }
     this.showToast(reward.successMessage);
   }
 
-  private hasClaimedLegacyRewardToday(key: string): boolean {
-    const claimed = this.readLegacyRewardsToday();
-    return claimed.has(key);
-  }
-
-  private markLegacyRewardClaimedToday(key: string): void {
-    const claimed = this.readLegacyRewardsToday();
-    claimed.add(key);
-    try {
-      globalThis.localStorage?.setItem(
-        LEGACY_REWARD_SAVE_KEY,
-        JSON.stringify({ date: todayKey(), claimedIds: [...claimed] }),
-      );
-    } catch {
-      // Ignore private browsing storage failures.
-    }
-  }
-
-  private readLegacyRewardsToday(): Set<string> {
-    try {
-      const raw = globalThis.localStorage?.getItem(LEGACY_REWARD_SAVE_KEY);
-      if (!raw) return new Set();
-      const parsed = JSON.parse(raw) as { date?: string; claimedIds?: string[] };
-      if (parsed.date !== todayKey() || !Array.isArray(parsed.claimedIds)) return new Set();
-      return new Set(parsed.claimedIds.filter((id) => typeof id === 'string'));
-    } catch {
-      return new Set();
-    }
-  }
-
-  private isPatrolRewardClaimedToday(): boolean {
-    return this.hasClaimedLegacyRewardToday(legacyPatrolRewardKey(this.locationId));
-  }
-
   private tryClaimLegacyPatrolReward(): string | null {
-    const def = LEGACY_LOCATIONS[this.locationId];
-    if (!this.findLocationEncounterZone(def) || this.isPatrolRewardClaimedToday()) return null;
+    if (!legacyLocationHasPatrol(this.locationId) || hasClaimedLegacyPatrolToday(this.locationId)) {
+      return null;
+    }
 
     const reward = legacyPatrolRewardForLocation(this.locationId);
     PlayerState.addCoins(reward.coins);
     PlayerState.addItem(reward.itemId, reward.itemQuantity);
-    this.markLegacyRewardClaimedToday(legacyPatrolRewardKey(this.locationId));
+    markLegacyRewardClaimedToday(legacyPatrolRewardKey(this.locationId));
     return `巡护完成：+${reward.coins} 彩虹币，+${reward.itemQuantity} ${reward.itemLabel}`;
   }
 
@@ -1341,11 +1308,10 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private drawPatrolBadge(x: number, y: number, width: number): void {
-    const def = LEGACY_LOCATIONS[this.locationId];
-    if (!this.findLocationEncounterZone(def)) return;
+    if (!legacyLocationHasPatrol(this.locationId)) return;
 
     const reward = legacyPatrolRewardForLocation(this.locationId);
-    const claimed = this.isPatrolRewardClaimedToday();
+    const claimed = hasClaimedLegacyPatrolToday(this.locationId);
     const fill = claimed ? 0x123b4b : 0x174b68;
     const stroke = claimed ? 0x8fe8ff : 0xffd166;
     const title = claimed ? '巡护 已完成' : '巡护 待完成';
@@ -1490,22 +1456,4 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.toast?.destroy();
     this.toast = null;
   }
-}
-
-function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function legacyPatrolRewardKey(locationId: LegacyLocationId): string {
-  return `${locationId}:patrol`;
-}
-
-function legacyPatrolRewardForLocation(locationId: LegacyLocationId): LegacyPatrolReward {
-  const recommended = difficultyForLocation(locationId).recommended;
-  return {
-    coins: Math.min(160, Math.round((30 + recommended * 4) / 5) * 5),
-    itemId: LEGACY_PATROL_ITEM_ID,
-    itemLabel: LEGACY_PATROL_ITEM_LABEL,
-    itemQuantity: recommended >= 18 ? 2 : 1,
-  };
 }

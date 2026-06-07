@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 import { BACKGROUND_COLOR, GAME_HEIGHT, GAME_WIDTH, SceneKey } from '@/config/GameConfig';
-import { recommendedLevelLabel } from '@/data/locationDifficulty';
+import { difficultyForLocation, recommendedLevelLabel } from '@/data/locationDifficulty';
 import { getPet } from '@/data/pets';
 import {
   ROUTE_MAP_HOTSPOTS,
@@ -11,6 +11,11 @@ import {
   type RouteMapHotspotImageMask,
 } from '@/data/routeMapHotspots';
 import { AudioManager } from '@/systems/AudioManager';
+import {
+  hasClaimedLegacyPatrolToday,
+  legacyLocationHasPatrol,
+  legacyPatrolRewardSummary,
+} from '@/systems/LegacyPatrol';
 import { preloadRouteMapAssets } from '@/systems/SceneAssetPreloader';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import {
@@ -18,6 +23,8 @@ import {
   type ResponsiveMapBackground,
   type ResponsiveMapDisplayBounds,
 } from '@/utils/responsiveBackground';
+
+import { LEGACY_LOCATIONS } from './LegacyContent';
 
 interface RouteMapHotspotView {
   readonly hotspot: RouteMapHotspotDefinition;
@@ -44,6 +51,8 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   private routeBackground: ResponsiveMapBackground | null = null;
   private routeHotspotViews: RouteMapHotspotView[] = [];
   private navScrim: Phaser.GameObjects.Rectangle | null = null;
+  private routeIntelPanel: Phaser.GameObjects.Container | null = null;
+  private hoveredRouteHotspot: RouteMapHotspotDefinition | null = null;
 
   public constructor() {
     super({ key: SceneKey.LEGACY_ROUTE_MAP });
@@ -64,6 +73,8 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     this.routeBackground = null;
     this.routeHotspotViews = [];
     this.navScrim = null;
+    this.routeIntelPanel = null;
+    this.hoveredRouteHotspot = null;
   }
 
   public preload(): void {
@@ -95,15 +106,18 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       this.scene.start(SceneKey.SAVE_SLOTS, { fromScene: SceneKey.LEGACY_ROUTE_MAP }),
     );
     this.createNavButton(758, 42, '签到', () => this.scene.start(SceneKey.VIP_PANEL));
+    this.drawRouteIntelPanel();
 
     this.scale.on(Phaser.Scale.Events.RESIZE, this.refreshRouteLayout, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshRouteLayout, this);
       this.clearRoutePreview();
       this.destroyRouteHotspots();
+      this.destroyRouteIntelPanel();
       this.clearToast();
       this.routeBackground = null;
       this.navScrim = null;
+      this.hoveredRouteHotspot = null;
     });
     this.showReturnToast();
     AudioManager.play('world_rainbow', undefined, this);
@@ -139,6 +153,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     this.routeBackground?.refresh();
     this.navScrim?.setSize(this.routeViewportWidth(), 88);
     this.refreshRouteHotspots();
+    this.drawRouteIntelPanel(this.hoveredRouteHotspot);
   }
 
   private routeViewportWidth(): number {
@@ -240,10 +255,10 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(42);
     const challengeText = this.add
-      .text(labelPoint.x, labelPoint.y + 24, recommendedLevelLabel(hotspot.locationId), {
+      .text(labelPoint.x, labelPoint.y + 24, this.routeChallengeLabel(hotspot.locationId), {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '12px',
-        color: '#fff4a8',
+        color: this.routeChallengeColor(hotspot.locationId),
         stroke: '#1b1b3a',
         strokeThickness: 3,
       })
@@ -273,12 +288,16 @@ export class LegacyRouteMapScene extends Phaser.Scene {
 
     zone
       .on('pointerover', () => {
+        this.hoveredRouteHotspot = hotspot;
         this.drawRouteHotspotState(view, true);
         this.drawRoutePreview(hotspot);
+        this.drawRouteIntelPanel(hotspot);
       })
       .on('pointerout', () => {
+        if (this.hoveredRouteHotspot?.id === hotspot.id) this.hoveredRouteHotspot = null;
         this.drawRouteHotspotState(view, false);
         this.clearRoutePreview();
+        this.drawRouteIntelPanel();
       })
       .on('pointerup', () => this.openHotspot(hotspot));
     this.routeHotspotViews.push(view);
@@ -295,10 +314,140 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     }
   }
 
+  private routeChallengeLabel(locationId: RouteMapHotspotDefinition['locationId']): string {
+    if (!legacyLocationHasPatrol(locationId)) return recommendedLevelLabel(locationId);
+    return `${recommendedLevelLabel(locationId)} · ${
+      hasClaimedLegacyPatrolToday(locationId) ? '已巡护' : '巡护'
+    }`;
+  }
+
+  private routeChallengeColor(locationId: RouteMapHotspotDefinition['locationId']): string {
+    if (!legacyLocationHasPatrol(locationId)) return '#fff4a8';
+    return hasClaimedLegacyPatrolToday(locationId) ? '#bff8ff' : '#fff4a8';
+  }
+
+  private routePatrolColor(locationId: RouteMapHotspotDefinition['locationId']): number {
+    if (!legacyLocationHasPatrol(locationId)) return 0x8fe8ff;
+    return hasClaimedLegacyPatrolToday(locationId) ? 0x8fe8ff : 0xffd166;
+  }
+
+  private drawRouteIntelPanel(hotspot: RouteMapHotspotDefinition | null = null): void {
+    this.destroyRouteIntelPanel();
+
+    const width = 342;
+    const height = hotspot ? 128 : 96;
+    const x = 16;
+    const y = GAME_HEIGHT - height - 14;
+    const panel = this.add.container(x, y).setDepth(96).setScrollFactor(0);
+    const g = this.add.graphics();
+    g.fillStyle(0x072846, 0.84);
+    g.lineStyle(2, hotspot ? this.routePatrolColor(hotspot.locationId) : 0x8fe8ff, 0.78);
+    g.fillRoundedRect(0, 0, width, height, 7);
+    g.strokeRoundedRect(0, 0, width, height, 7);
+    panel.add(g);
+
+    if (hotspot) {
+      this.drawRouteHotspotIntel(panel, hotspot, width);
+    } else {
+      this.drawRoutePatrolOverview(panel, width);
+    }
+
+    this.routeIntelPanel = panel;
+  }
+
+  private drawRoutePatrolOverview(panel: Phaser.GameObjects.Container, width: number): void {
+    const patrols = ROUTE_MAP_HOTSPOTS.filter((item) => legacyLocationHasPatrol(item.locationId));
+    const unfinished = patrols.filter(
+      (item) => !hasClaimedLegacyPatrolToday(item.locationId),
+    ).length;
+
+    panel.add([
+      this.addRouteIntelText(16, 12, '今日巡护', 17, '#ffffff', width - 32, true),
+      this.addRouteIntelText(
+        16,
+        38,
+        `${unfinished}/${patrols.length} 待巡护`,
+        20,
+        '#fff4a8',
+        width - 32,
+        true,
+      ),
+      this.addRouteIntelText(16, 68, '旧地点战斗/收服结算 · 每日刷新', 13, '#c8f7ff', width - 32),
+    ]);
+  }
+
+  private drawRouteHotspotIntel(
+    panel: Phaser.GameObjects.Container,
+    hotspot: RouteMapHotspotDefinition,
+    width: number,
+  ): void {
+    const def = LEGACY_LOCATIONS[hotspot.locationId];
+    const diff = difficultyForLocation(hotspot.locationId);
+    const hasPatrol = legacyLocationHasPatrol(hotspot.locationId);
+    const patrolDone = hasClaimedLegacyPatrolToday(hotspot.locationId);
+    const patrolLine = hasPatrol
+      ? `${patrolDone ? '巡护已完成' : '今日巡护'} · ${legacyPatrolRewardSummary(
+          hotspot.locationId,
+        )}`
+      : '暂无野外巡护';
+
+    panel.add([
+      this.addRouteIntelText(16, 12, hotspot.label, 18, '#ffffff', width - 32, true),
+      this.addRouteIntelText(
+        16,
+        40,
+        `${recommendedLevelLabel(hotspot.locationId)} · 野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`,
+        13,
+        '#fff4a8',
+        width - 32,
+      ),
+      this.addRouteIntelText(
+        16,
+        62,
+        patrolLine,
+        13,
+        patrolDone ? '#bff8ff' : '#ffe6a3',
+        width - 32,
+      ),
+      this.addRouteIntelText(16, 86, def.blurb, 13, '#d9f6ff', width - 32),
+    ]);
+  }
+
+  private addRouteIntelText(
+    x: number,
+    y: number,
+    text: string,
+    fontSize: number,
+    color: string,
+    width: number,
+    bold = false,
+  ): Phaser.GameObjects.Text {
+    return this.add.text(x, y, text, {
+      fontFamily: 'Microsoft YaHei, SimHei, sans-serif',
+      fontSize: `${fontSize}px`,
+      color,
+      stroke: '#1b1b3a',
+      strokeThickness: bold ? 3 : 2,
+      fontStyle: bold ? 'bold' : 'normal',
+      fixedWidth: width,
+      wordWrap: { width },
+      lineSpacing: 1,
+    });
+  }
+
+  private destroyRouteIntelPanel(): void {
+    this.routeIntelPanel?.destroy(true);
+    this.routeIntelPanel = null;
+  }
+
   private drawRouteHotspotState(view: RouteMapHotspotView, active: boolean): void {
     const labelPoint = this.routeLabelPoint(view.mask);
+    view.challengeText
+      .setText(this.routeChallengeLabel(view.hotspot.locationId))
+      .setColor(this.routeChallengeColor(view.hotspot.locationId));
     const labelWidth = Math.max(92, Math.min(156, view.labelText.width + 22));
     const labelHeight = 28;
+    const patrolColor = this.routePatrolColor(view.hotspot.locationId);
 
     view.edge.setAlpha(active ? 0.95 : 0);
     view.labelText.setPosition(labelPoint.x, labelPoint.y);
@@ -321,9 +470,9 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       7,
     );
 
-    const challengeWidth = Math.max(82, Math.min(148, view.challengeText.width + 18));
+    const challengeWidth = Math.max(92, Math.min(190, view.challengeText.width + 18));
     view.labelBg.fillStyle(0x0b3768, 0.84);
-    view.labelBg.lineStyle(1, 0xffffff, 0.58);
+    view.labelBg.lineStyle(1, patrolColor, active ? 0.9 : 0.64);
     view.labelBg.fillRoundedRect(
       labelPoint.x - challengeWidth / 2,
       labelPoint.y + 12,
