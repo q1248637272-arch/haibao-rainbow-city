@@ -87,6 +87,11 @@ describe('legacy map routing', () => {
     expect(sceneSource).toContain('legacyPatrolRewardForLocation');
     expect(sceneSource).toContain('tryClaimLegacyPatrolReward');
     expect(sceneSource).toContain('drawPatrolBadge');
+    expect(sceneSource).toContain('patrolHud');
+    expect(sceneSource).toContain('destroyPatrolHud');
+    expect(sceneSource).toContain('目标：野外战斗或收服');
+    expect(sceneSource).toContain('奖励：+${reward.coins}币');
+    expect(sceneSource).toContain('this.drawDifficultyBadge();');
     expect(sceneSource).toContain('巡护未完成');
     expect(sceneSource).toContain('巡护完成');
     expect(sceneSource).toContain('PlayerState.addCoins(reward.coins)');

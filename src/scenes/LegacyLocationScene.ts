@@ -255,6 +255,7 @@ export class LegacyLocationScene extends Phaser.Scene {
   private locationBackground: ResponsiveMapBackground | null = null;
   private mappedLocationObjects: LocationMappedObject[] = [];
   private locationHotspotViews: LocationMapHotspotView[] = [];
+  private patrolHud: Phaser.GameObjects.Container | null = null;
   private playerLogicPoint = { x: 0, y: 0 };
 
   public constructor() {
@@ -284,6 +285,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.locationBackground = null;
     this.mappedLocationObjects = [];
     this.locationHotspotViews = [];
+    this.patrolHud = null;
   }
 
   public preload(): void {
@@ -338,6 +340,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshLocationLayout, this);
       this.destroyLocationHotspots();
+      this.destroyPatrolHud();
       this.clearToast();
       this.locationBackground = null;
       this.mappedLocationObjects = [];
@@ -1329,6 +1332,7 @@ export class LegacyLocationScene extends Phaser.Scene {
         `连锁奖励：+${bonus.reward.coins} 彩虹币，+${bonus.reward.itemQuantity} ${bonus.reward.itemLabel}`,
       );
     }
+    this.drawDifficultyBadge();
     return messages.join('\n');
   }
 
@@ -1564,16 +1568,18 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private drawDifficultyBadge(): void {
+    this.destroyPatrolHud();
+
     const diff = difficultyForLocation(this.locationId);
     const label = `${recommendedLevelLabel(this.locationId)}  野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`;
     const x = GAME_WIDTH - 146;
     const y = 76;
     const width = 236;
-    this.add
+    const hud = this.add.container(0, 0).setDepth(902).setScrollFactor(0);
+    const difficultyBg = this.add
       .rectangle(x, y, width, 34, 0x0b3768, 0.74)
-      .setStrokeStyle(2, 0xffffff, 0.5)
-      .setDepth(902);
-    this.add
+      .setStrokeStyle(2, 0xffffff, 0.5);
+    const difficultyText = this.add
       .text(x, y, label, {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '15px',
@@ -1581,13 +1587,24 @@ export class LegacyLocationScene extends Phaser.Scene {
         stroke: '#1b1b3a',
         strokeThickness: 3,
       })
-      .setOrigin(0.5)
-      .setDepth(903);
+      .setOrigin(0.5);
 
-    this.drawPatrolBadge(x, y + 42, width);
+    hud.add([difficultyBg, difficultyText]);
+    this.drawPatrolBadge(hud, x, y + 54, width);
+    this.patrolHud = hud;
   }
 
-  private drawPatrolBadge(x: number, y: number, width: number): void {
+  private destroyPatrolHud(): void {
+    this.patrolHud?.destroy(true);
+    this.patrolHud = null;
+  }
+
+  private drawPatrolBadge(
+    hud: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    width: number,
+  ): void {
     if (!legacyLocationHasPatrol(this.locationId)) return;
 
     const reward = legacyPatrolRewardForLocation(this.locationId);
@@ -1595,35 +1612,62 @@ export class LegacyLocationScene extends Phaser.Scene {
     const fill = claimed ? 0x123b4b : 0x174b68;
     const stroke = claimed ? 0x8fe8ff : 0xffd166;
     const title = claimed ? '巡护 已完成' : '巡护 待完成';
+    const objective = claimed ? '目标完成：今日奖励已入账' : '目标：野外战斗或收服';
     const detail = claimed
-      ? legacyPatrolChainProgressLabel()
-      : `战斗/收服 +${reward.coins}币 · ${legacyPatrolChainProgressLabel()}`;
+      ? `明日刷新 · ${legacyPatrolChainProgressLabel()}`
+      : `奖励：+${reward.coins}币 +${reward.itemQuantity}${reward.itemLabel} · ${legacyPatrolChainProgressLabel()}`;
+    const badgeHeight = 78;
 
-    this.add.rectangle(x, y, width, 48, fill, 0.82).setStrokeStyle(2, stroke, 0.66).setDepth(902);
+    const bg = this.add
+      .rectangle(x, y, width, badgeHeight, fill, 0.84)
+      .setStrokeStyle(2, stroke, 0.72);
 
-    this.drawPatrolBadgeIcon(x - width / 2 + 26, y, stroke, claimed);
+    const icon = this.drawPatrolBadgeIcon(x - width / 2 + 26, y - 15, stroke, claimed);
 
-    this.add
-      .text(x - width / 2 + 50, y, `${title}\n${detail}`, {
+    const titleText = this.add
+      .text(x - width / 2 + 50, y - 25, title, {
         fontFamily: 'Microsoft YaHei, sans-serif',
-        fontSize: '13px',
+        fontSize: '14px',
+        color: claimed ? '#c8f7ff' : '#fff6d2',
+        stroke: '#1b1b3a',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0, 0.5);
+    const statusPill = this.add
+      .text(x + width / 2 - 34, y - 25, claimed ? 'DONE' : 'TODAY', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '10px',
+        color: claimed ? '#123b4b' : '#4b3000',
+        backgroundColor: claimed ? '#bff8ff' : '#ffd166',
+        padding: { left: 5, right: 5, top: 2, bottom: 2 },
+      })
+      .setOrigin(0.5);
+    const detailText = this.add
+      .text(x - width / 2 + 50, y - 4, `${objective}\n${detail}`, {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '12px',
         color: claimed ? '#c8f7ff' : '#fff6d2',
         stroke: '#1b1b3a',
         strokeThickness: 3,
         fixedWidth: width - 60,
         lineSpacing: 1,
       })
-      .setOrigin(0, 0.5)
-      .setDepth(903);
+      .setOrigin(0, 0.5);
+    hud.add([bg, icon, titleText, statusPill, detailText]);
   }
 
-  private drawPatrolBadgeIcon(x: number, y: number, stroke: number, claimed: boolean): void {
+  private drawPatrolBadgeIcon(
+    x: number,
+    y: number,
+    stroke: number,
+    claimed: boolean,
+  ): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
     if (this.textures.exists(PATROL_BADGE_TEXTURE_KEY)) {
-      this.add.image(x, y, PATROL_BADGE_TEXTURE_KEY).setDisplaySize(34, 34).setDepth(903);
-      return;
+      return this.add.image(x, y, PATROL_BADGE_TEXTURE_KEY).setDisplaySize(34, 34);
     }
 
-    const icon = this.add.graphics().setDepth(903);
+    const icon = this.add.graphics();
     icon.lineStyle(2, stroke, 0.92);
     icon.strokeCircle(x, y, 12);
     icon.lineStyle(1, 0xffffff, 0.72);
@@ -1635,6 +1679,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     icon.strokePath();
     icon.fillStyle(claimed ? 0x8fe8ff : 0xffef9a, 0.9);
     icon.fillTriangle(x, y - 9, x + 5, y + 4, x - 4, y + 2);
+    return icon;
   }
 
   private showReturnToast(): void {
