@@ -35,10 +35,14 @@ import {
   hasClaimedLegacyRewardToday,
   legacyDailyRewardKey,
   legacyLocationHasPatrol,
+  legacyPatrolChainTarget,
+  legacyPatrolChainProgressLabel,
   legacyPatrolRewardForLocation,
   legacyPatrolRewardKey,
   legacyTodayKey,
   markLegacyRewardClaimedToday,
+  claimLegacyPatrolChainBonus,
+  recordLegacyPatrolCompletion,
 } from '@/systems/LegacyPatrol';
 import {
   currentPlayerButtonLabel,
@@ -1051,7 +1055,20 @@ export class LegacyLocationScene extends Phaser.Scene {
     PlayerState.addCoins(reward.coins);
     PlayerState.addItem(reward.itemId, reward.itemQuantity);
     markLegacyRewardClaimedToday(legacyPatrolRewardKey(this.locationId));
-    return `巡护完成：+${reward.coins} 彩虹币，+${reward.itemQuantity} ${reward.itemLabel}`;
+    const progress = recordLegacyPatrolCompletion(this.locationId);
+    const bonus = claimLegacyPatrolChainBonus();
+    const messages = [
+      `巡护完成：+${reward.coins} 彩虹币，+${reward.itemQuantity} ${reward.itemLabel}`,
+      `连续巡护：今日${progress.completedLocationIds.length}/${legacyPatrolChainTarget()} · 连勤${progress.streakDays}天`,
+    ];
+    if (bonus) {
+      PlayerState.addCoins(bonus.reward.coins);
+      PlayerState.addItem(bonus.reward.itemId, bonus.reward.itemQuantity);
+      messages.push(
+        `连锁奖励：+${bonus.reward.coins} 彩虹币，+${bonus.reward.itemQuantity} ${bonus.reward.itemLabel}`,
+      );
+    }
+    return messages.join('\n');
   }
 
   private startRoamingPetBattle(pet: RoamingPet): void {
@@ -1317,10 +1334,10 @@ export class LegacyLocationScene extends Phaser.Scene {
     const stroke = claimed ? 0x8fe8ff : 0xffd166;
     const title = claimed ? '巡护 已完成' : '巡护 待完成';
     const detail = claimed
-      ? '明日刷新'
-      : `战斗/收服 +${reward.coins}币 +${reward.itemQuantity}${reward.itemLabel}`;
+      ? legacyPatrolChainProgressLabel()
+      : `战斗/收服 +${reward.coins}币 · ${legacyPatrolChainProgressLabel()}`;
 
-    this.add.rectangle(x, y, width, 44, fill, 0.82).setStrokeStyle(2, stroke, 0.66).setDepth(902);
+    this.add.rectangle(x, y, width, 48, fill, 0.82).setStrokeStyle(2, stroke, 0.66).setDepth(902);
 
     this.drawPatrolBadgeIcon(x - width / 2 + 26, y, stroke, claimed);
 

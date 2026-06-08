@@ -13,6 +13,7 @@ import {
 import { AudioManager } from '@/systems/AudioManager';
 import {
   hasClaimedLegacyPatrolToday,
+  legacyPatrolChainProgressLabel,
   legacyLocationHasPatrol,
   legacyPatrolRewardSummary,
 } from '@/systems/LegacyPatrol';
@@ -336,7 +337,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     this.destroyRouteIntelPanel();
 
     const width = 342;
-    const height = hotspot ? 128 : 96;
+    const height = hotspot ? 144 : 116;
     const x = 16;
     const y = GAME_HEIGHT - height - 14;
     const panel = this.add.container(x, y).setDepth(96).setScrollFactor(0);
@@ -374,7 +375,8 @@ export class LegacyRouteMapScene extends Phaser.Scene {
         width - 106,
         true,
       ),
-      this.addRouteIntelText(16, 68, '旧地点战斗/收服结算 · 每日刷新', 13, '#c8f7ff', width - 106),
+      this.addRouteIntelText(16, 66, legacyPatrolChainProgressLabel(), 13, '#c8f7ff', width - 106),
+      this.addRouteIntelText(16, 90, '旧地点战斗/收服结算 · 每日刷新', 13, '#d9f6ff', width - 106),
     ]);
   }
 
@@ -412,7 +414,8 @@ export class LegacyRouteMapScene extends Phaser.Scene {
         patrolDone ? '#bff8ff' : '#ffe6a3',
         width - 106,
       ),
-      this.addRouteIntelText(16, 86, def.blurb, 13, '#d9f6ff', width - 32),
+      this.addRouteIntelText(16, 84, legacyPatrolChainProgressLabel(), 13, '#c8f7ff', width - 106),
+      this.addRouteIntelText(16, 108, def.blurb, 13, '#d9f6ff', width - 32),
     ]);
   }
 
