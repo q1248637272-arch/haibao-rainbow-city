@@ -100,6 +100,7 @@
   - `public/assets/legacy/image2-restored/pets/legacy_pet_yu_mengqian_image2.png`
   - `public/assets/legacy/image2-restored/pets/legacy_pet_li_yanwen_image2.png`
   - `public/assets/legacy/image2-restored/ui/legacy_patrol_badge_image2.webp`
+  - `public/assets/legacy/image2-restored/ui/legacy_patrol_task_panel_image2.webp`
   - `public/assets/legacy/image2-restored/ui/legacy_route_patrol_stamp_image2.webp`
   - `public/assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png`
   - `public/assets/legacy/image2-restored/route-map-v6/*_mask.png`

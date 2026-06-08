@@ -406,6 +406,7 @@ export function preloadLegacyLocationAssets(
     legacyKeys: [
       def.textureKey,
       'legacy_patrol_badge_image2',
+      'legacy_patrol_task_panel_image2',
       ...BASE_CHARACTER_KEYS,
       ...storyNpcKeys(locationId),
       ...(def.npcs ?? []).map((npc) => npc.textureKey),

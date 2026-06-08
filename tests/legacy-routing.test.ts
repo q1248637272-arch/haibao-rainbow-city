@@ -127,7 +127,11 @@ describe('legacy map routing', () => {
     );
     const locationSource = readFileSync(path.resolve('src/scenes/LegacyLocationScene.ts'), 'utf8');
     const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
-    const assets = ['legacy_patrol_badge_image2', 'legacy_route_patrol_stamp_image2'] as const;
+    const assets = [
+      'legacy_patrol_badge_image2',
+      'legacy_patrol_task_panel_image2',
+      'legacy_route_patrol_stamp_image2',
+    ] as const;
 
     for (const key of assets) {
       const assetPath = `public/assets/legacy/image2-restored/ui/${key}.webp`;
@@ -141,6 +145,8 @@ describe('legacy map routing', () => {
     }
 
     expect(locationSource).toContain("PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2'");
+    expect(locationSource).toContain("PATROL_PANEL_TEXTURE_KEY = 'legacy_patrol_task_panel_image2'");
+    expect(locationSource).toContain("this.add.image(x, y, PATROL_PANEL_TEXTURE_KEY)");
     expect(routeMapSource).toContain(
       "ROUTE_PATROL_STAMP_TEXTURE_KEY = 'legacy_route_patrol_stamp_image2'",
     );

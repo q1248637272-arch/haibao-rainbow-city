@@ -80,6 +80,7 @@ const LOCATION_VIRTUAL_PLAYER_COUNT = 2;
 const ENCOUNTER_RETURN_COOLDOWN_MS = 1800;
 const ENCOUNTER_RESUME_MOVE_DISTANCE = 28;
 const PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2';
+const PATROL_PANEL_TEXTURE_KEY = 'legacy_patrol_task_panel_image2';
 const LOCATION_LOGIC_SIZE = { width: GAME_WIDTH, height: GAME_HEIGHT } as const;
 
 type LocationMappedGameObject = Phaser.GameObjects.GameObject & {
@@ -1572,9 +1573,9 @@ export class LegacyLocationScene extends Phaser.Scene {
 
     const diff = difficultyForLocation(this.locationId);
     const label = `${recommendedLevelLabel(this.locationId)}  野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`;
-    const x = GAME_WIDTH - 146;
+    const x = GAME_WIDTH - 170;
     const y = 76;
-    const width = 236;
+    const width = 300;
     const hud = this.add.container(0, 0).setDepth(902).setScrollFactor(0);
     const difficultyBg = this.add
       .rectangle(x, y, width, 34, 0x0b3768, 0.74)
@@ -1590,7 +1591,7 @@ export class LegacyLocationScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     hud.add([difficultyBg, difficultyText]);
-    this.drawPatrolBadge(hud, x, y + 54, width);
+    this.drawPatrolBadge(hud, x, y + 92, width);
     this.patrolHud = hud;
   }
 
@@ -1616,18 +1617,24 @@ export class LegacyLocationScene extends Phaser.Scene {
     const detail = claimed
       ? `明日刷新 · ${legacyPatrolChainProgressLabel()}`
       : `奖励：+${reward.coins}币 +${reward.itemQuantity}${reward.itemLabel} · ${legacyPatrolChainProgressLabel()}`;
-    const badgeHeight = 78;
-
-    const bg = this.add
-      .rectangle(x, y, width, badgeHeight, fill, 0.84)
-      .setStrokeStyle(2, stroke, 0.72);
-
-    const icon = this.drawPatrolBadgeIcon(x - width / 2 + 26, y - 15, stroke, claimed);
+    const hasImagePanel = this.textures.exists(PATROL_PANEL_TEXTURE_KEY);
+    const badgeHeight = hasImagePanel ? 162 : 78;
+    const bg = hasImagePanel
+      ? this.add.image(x, y, PATROL_PANEL_TEXTURE_KEY).setDisplaySize(width, badgeHeight)
+      : this.add.rectangle(x, y, width, badgeHeight, fill, 0.84).setStrokeStyle(2, stroke, 0.72);
+    const textLeft = hasImagePanel ? x - width / 2 + 112 : x - width / 2 + 50;
+    const textWidth = hasImagePanel ? width - 132 : width - 60;
+    const titleY = hasImagePanel ? y - 43 : y - 25;
+    const objectiveY = hasImagePanel ? y - 1 : y - 4;
+    const detailY = hasImagePanel ? y + 39 : y + 17;
+    const icon = hasImagePanel
+      ? null
+      : this.drawPatrolBadgeIcon(x - width / 2 + 26, y - 15, stroke, claimed);
 
     const titleText = this.add
-      .text(x - width / 2 + 50, y - 25, title, {
+      .text(textLeft, titleY, title, {
         fontFamily: 'Microsoft YaHei, sans-serif',
-        fontSize: '14px',
+        fontSize: hasImagePanel ? '15px' : '14px',
         color: claimed ? '#c8f7ff' : '#fff6d2',
         stroke: '#1b1b3a',
         strokeThickness: 3,
@@ -1635,7 +1642,7 @@ export class LegacyLocationScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
     const statusPill = this.add
-      .text(x + width / 2 - 34, y - 25, claimed ? 'DONE' : 'TODAY', {
+      .text(x + width / 2 - 42, titleY, claimed ? 'DONE' : 'TODAY', {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '10px',
         color: claimed ? '#123b4b' : '#4b3000',
@@ -1643,18 +1650,34 @@ export class LegacyLocationScene extends Phaser.Scene {
         padding: { left: 5, right: 5, top: 2, bottom: 2 },
       })
       .setOrigin(0.5);
-    const detailText = this.add
-      .text(x - width / 2 + 50, y - 4, `${objective}\n${detail}`, {
+    const objectiveText = this.add
+      .text(textLeft, objectiveY, objective, {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '12px',
         color: claimed ? '#c8f7ff' : '#fff6d2',
         stroke: '#1b1b3a',
         strokeThickness: 3,
-        fixedWidth: width - 60,
-        lineSpacing: 1,
+        fixedWidth: textWidth,
       })
       .setOrigin(0, 0.5);
-    hud.add([bg, icon, titleText, statusPill, detailText]);
+    const detailText = this.add
+      .text(textLeft, detailY, detail, {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '11px',
+        color: claimed ? '#c8f7ff' : '#fff6d2',
+        stroke: '#1b1b3a',
+        strokeThickness: 3,
+        fixedWidth: textWidth,
+      })
+      .setOrigin(0, 0.5);
+    hud.add([
+      bg,
+      ...(icon === null ? [] : [icon]),
+      titleText,
+      statusPill,
+      objectiveText,
+      detailText,
+    ]);
   }
 
   private drawPatrolBadgeIcon(
