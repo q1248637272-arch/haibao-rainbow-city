@@ -8,8 +8,10 @@ import {
   ROUTE_MAP_HOTSPOT_IMAGE_MASKS,
   ROUTE_MAP_SOURCE_SIZE,
   type RouteMapHotspotDefinition,
+  type RouteMapHotspotId,
   type RouteMapHotspotImageMask,
 } from '@/data/routeMapHotspots';
+import routeMapHitmapsData from '@/data/routeMapHitmaps.json';
 import { AudioManager } from '@/systems/AudioManager';
 import {
   hasClaimedLegacyPatrolToday,
@@ -43,10 +45,50 @@ interface RouteMaskActiveBounds {
   readonly centerX: number;
 }
 
+interface RouteMapHitmaskBounds {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+interface RouteMapHitmask {
+  readonly width: number;
+  readonly height: number;
+  readonly threshold: number;
+  readonly hitPixels: number;
+  readonly bbox: RouteMapHitmaskBounds | null;
+  readonly runs: Readonly<Record<string, readonly (readonly [number, number])[]>>;
+}
+
+interface RouteMapHitmapsFile {
+  readonly format: 'route-map-alpha-hitmaps-v1';
+  readonly threshold: number;
+  readonly masks: Readonly<Partial<Record<RouteMapHotspotId, RouteMapHitmask>>>;
+}
+
 const MAP_IMAGE_KEY = 'legacy_world_map_full';
 const ROUTE_PATROL_STAMP_TEXTURE_KEY = 'legacy_route_patrol_stamp_image2';
 const ROUTE_MAP_NAME_LABEL_HEIGHT = 28;
 const ROUTE_MAP_NAME_LABEL_GAP = 2;
+const ROUTE_MAP_HITMAPS = routeMapHitmapsData as unknown as RouteMapHitmapsFile;
+
+function routeHitmaskFor(hotspotId: RouteMapHotspotId): RouteMapHitmask | null {
+  return ROUTE_MAP_HITMAPS.masks[hotspotId] ?? null;
+}
+
+function routeHitmaskContains(hitmask: RouteMapHitmask, imageX: number, imageY: number): boolean {
+  const x = Math.floor(imageX);
+  const y = Math.floor(imageY);
+  if (x < 0 || y < 0 || x >= hitmask.width || y >= hitmask.height) return false;
+  const row = hitmask.runs[String(y)];
+  if (!row) return false;
+  for (const [start, end] of row) {
+    if (x >= start && x < end) return true;
+    if (x < start) return false;
+  }
+  return false;
+}
 
 export class LegacyRouteMapScene extends Phaser.Scene {
   private fromScene: string = SceneKey.WORLD;
@@ -230,14 +272,17 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     };
   }
 
-  private routeLabelPoint(mask: RouteMapHotspotImageMask): {
+  private routeLabelPoint(
+    hotspotId: RouteMapHotspotId,
+    mask: RouteMapHotspotImageMask,
+  ): {
     readonly x: number;
     readonly y: number;
   } {
     const bounds = this.routeMapDisplayBounds();
     const scaleX = bounds.width / ROUTE_MAP_SOURCE_SIZE.width;
     const scaleY = bounds.height / ROUTE_MAP_SOURCE_SIZE.height;
-    const active = this.routeMaskActiveBounds(mask);
+    const active = this.routeMaskActiveBounds(hotspotId, mask);
     const rawX = bounds.left + (mask.x + active.centerX) * scaleX;
     const responseBottomY = bounds.top + (mask.y + active.bottom + 1) * scaleY;
     const rawY = responseBottomY + ROUTE_MAP_NAME_LABEL_HEIGHT / 2 + ROUTE_MAP_NAME_LABEL_GAP;
@@ -247,9 +292,22 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     };
   }
 
-  private routeMaskActiveBounds(mask: RouteMapHotspotImageMask): RouteMaskActiveBounds {
-    const cached = this.routeMaskActiveBoundsCache.get(mask.maskTextureKey);
+  private routeMaskActiveBounds(
+    hotspotId: RouteMapHotspotId,
+    mask: RouteMapHotspotImageMask,
+  ): RouteMaskActiveBounds {
+    const cached = this.routeMaskActiveBoundsCache.get(hotspotId);
     if (cached) return cached;
+
+    const hitmask = routeHitmaskFor(hotspotId);
+    if (hitmask?.bbox && hitmask.width === mask.width && hitmask.height === mask.height) {
+      const active = {
+        bottom: hitmask.bbox.y + hitmask.bbox.height - 1,
+        centerX: hitmask.bbox.x + hitmask.bbox.width / 2,
+      };
+      this.routeMaskActiveBoundsCache.set(hotspotId, active);
+      return active;
+    }
 
     const width = Math.max(1, mask.width);
     const height = Math.max(1, mask.height);
@@ -277,7 +335,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
             bottom: height - 1,
             centerX: width / 2,
           };
-    this.routeMaskActiveBoundsCache.set(mask.maskTextureKey, active);
+    this.routeMaskActiveBoundsCache.set(hotspotId, active);
     return active;
   }
 
@@ -297,7 +355,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       .setAlpha(0)
       .setBlendMode(Phaser.BlendModes.ADD);
     const labelBg = this.add.graphics().setDepth(41);
-    const labelPoint = this.routeLabelPoint(mask);
+    const labelPoint = this.routeLabelPoint(hotspot.id, mask);
     const labelText = this.add
       .text(labelPoint.x, labelPoint.y, hotspot.label, {
         fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
@@ -321,7 +379,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       .setDepth(42);
     const hitArea = new Phaser.Geom.Rectangle(0, 0, rect.width, rect.height);
     const contains: Phaser.Types.Input.HitAreaCallback = (_hitArea, x, y) =>
-      this.containsRouteMaskPoint(mask, hitArea.width, hitArea.height, x, y);
+      this.containsRouteMaskPoint(hotspot.id, mask, hitArea.width, hitArea.height, x, y);
     const zone = this.add
       .zone(rect.x, rect.y, rect.width, rect.height)
       .setOrigin(0)
@@ -570,7 +628,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   }
 
   private drawRouteHotspotState(view: RouteMapHotspotView, active: boolean): void {
-    const labelPoint = this.routeLabelPoint(view.mask);
+    const labelPoint = this.routeLabelPoint(view.hotspot.id, view.mask);
     const tracked = this.isTrackedRouteHotspot(view.hotspot);
     view.challengeText
       .setText(this.routeChallengeLabel(view.hotspot.locationId))
@@ -620,6 +678,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   }
 
   private containsRouteMaskPoint(
+    hotspotId: RouteMapHotspotId,
     mask: RouteMapHotspotImageMask,
     displayWidth: number,
     displayHeight: number,
@@ -628,6 +687,19 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   ): boolean {
     if (displayWidth <= 0 || displayHeight <= 0) return false;
     if (x < 0 || y < 0 || x >= displayWidth || y >= displayHeight) return false;
+    const hitmask = routeHitmaskFor(hotspotId);
+    if (hitmask && hitmask.width === mask.width && hitmask.height === mask.height) {
+      const sampleX = Math.min(
+        hitmask.width - 1,
+        Math.floor((x / displayWidth) * hitmask.width),
+      );
+      const sampleY = Math.min(
+        hitmask.height - 1,
+        Math.floor((y / displayHeight) * hitmask.height),
+      );
+      return routeHitmaskContains(hitmask, sampleX, sampleY);
+    }
+
     const sampleX = Math.min(mask.width - 1, Math.floor((x / displayWidth) * mask.width));
     const sampleY = Math.min(mask.height - 1, Math.floor((y / displayHeight) * mask.height));
     const alpha = this.textures.getPixelAlpha(sampleX, sampleY, mask.maskTextureKey);

@@ -5,7 +5,11 @@ import { describe, expect, it } from 'vitest';
 
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config/GameConfig';
 import { LOCATION_MAP_SOURCE_SIZE } from '@/data/locationMapHotspots';
-import { ROUTE_MAP_SOURCE_SIZE } from '@/data/routeMapHotspots';
+import {
+  ROUTE_MAP_HOTSPOT_IDS,
+  ROUTE_MAP_HOTSPOT_IMAGE_MASKS,
+  ROUTE_MAP_SOURCE_SIZE,
+} from '@/data/routeMapHotspots';
 import {
   computeEdgeFollowCameraScroll,
   computeResponsiveMapDisplaySize,
@@ -63,6 +67,34 @@ function readPngSize(filePath: string): { width: number; height: number } {
     width: buffer.readUInt32BE(16),
     height: buffer.readUInt32BE(20),
   };
+}
+
+interface RouteMapHitmapFixture {
+  readonly format: string;
+  readonly threshold: number;
+  readonly masks: Record<
+    string,
+    {
+      readonly source: string;
+      readonly width: number;
+      readonly height: number;
+      readonly threshold: number;
+      readonly hitPixels: number;
+      readonly bbox: {
+        readonly x: number;
+        readonly y: number;
+        readonly width: number;
+        readonly height: number;
+      } | null;
+      readonly runs: Record<string, readonly (readonly [number, number])[]>;
+    }
+  >;
+}
+
+function readRouteMapHitmaps(): RouteMapHitmapFixture {
+  const filePath = path.resolve('src/data/routeMapHitmaps.json');
+  expect(existsSync(filePath)).toBe(true);
+  return JSON.parse(readFileSync(filePath, 'utf8')) as RouteMapHitmapFixture;
 }
 
 describe('responsive wide map redraw assets', () => {
@@ -178,6 +210,30 @@ describe('responsive wide map redraw assets', () => {
     const routeMapSource = path.resolve('public', routeMapAssetPath);
 
     expect(readPngSize(routeMapSource)).toEqual(ROUTE_MAP_SOURCE_SIZE);
+  });
+
+  it('generates pixel-level route-map hitmaps from every same-source mask', () => {
+    const hitmaps = readRouteMapHitmaps();
+
+    expect(hitmaps.format).toBe('route-map-alpha-hitmaps-v1');
+    expect(hitmaps.threshold).toBe(16);
+    expect(Object.keys(hitmaps.masks).sort()).toEqual([...ROUTE_MAP_HOTSPOT_IDS].sort());
+
+    for (const hotspotId of ROUTE_MAP_HOTSPOT_IDS) {
+      const hitmap = hitmaps.masks[hotspotId];
+      const mask = ROUTE_MAP_HOTSPOT_IMAGE_MASKS[hotspotId];
+      expect(hitmap, hotspotId).toBeDefined();
+      if (!hitmap) throw new Error(`${hotspotId} route hitmap missing`);
+
+      expect(hitmap.source, hotspotId).toContain('/route-map-v6/');
+      expect(hitmap.width, hotspotId).toBe(mask.width);
+      expect(hitmap.height, hotspotId).toBe(mask.height);
+      expect(hitmap.threshold, hotspotId).toBe(mask.alphaTolerance);
+      expect(hitmap.hitPixels, hotspotId).toBeGreaterThan(1_000);
+      expect(hitmap.bbox, hotspotId).not.toBeNull();
+      expect(Object.keys(hitmap.runs).length, hotspotId).toBeGreaterThan(0);
+      expect(Object.values(hitmap.runs).some((row) => row.length > 0), hotspotId).toBe(true);
+    }
   });
 
   it('keeps every legacy location map tied to the native Image2 location source size', () => {
@@ -306,20 +362,27 @@ describe('responsive wide map redraw assets', () => {
     expect(homeSceneSource).not.toContain("fitMode: 'contain'");
   });
 
-  it('keeps route-map response areas synced to the horizontally filled background transform', () => {
+  it('keeps route-map response areas synced to the filled background and pixel hitmaps', () => {
     const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
 
     expect(routeMapSource).toContain("fitMode: 'fillWidth'");
+    expect(routeMapSource).toContain('routeMapHitmapsData');
+    expect(routeMapSource).toContain('ROUTE_MAP_HITMAPS');
     expect(routeMapSource).toContain('ROUTE_MAP_HOTSPOTS');
     expect(routeMapSource).toContain('ROUTE_MAP_SOURCE_SIZE');
     expect(routeMapSource).toContain('routeMapDisplayBounds');
     expect(routeMapSource).toContain('routeMaskDisplayRect');
     expect(routeMapSource).toContain('routeMaskActiveBounds');
+    expect(routeMapSource).toContain('routeHitmaskFor');
+    expect(routeMapSource).toContain('routeHitmaskContains');
     expect(routeMapSource).toContain('getDisplayBounds');
     expect(routeMapSource).toContain('bounds.left + mask.x * scaleX');
     expect(routeMapSource).toContain('mask.y + active.bottom + 1');
     expect(routeMapSource).not.toContain('this.routeMapPoint(mask.labelX, mask.labelY)');
-    expect(routeMapSource).toContain('containsRouteMaskPoint(mask, hitArea.width, hitArea.height');
+    expect(routeMapSource).toContain(
+      'containsRouteMaskPoint(hotspot.id, mask, hitArea.width, hitArea.height',
+    );
+    expect(routeMapSource).toContain('hitmask.runs[String(y)]');
     expect(routeMapSource).toContain('getPixelAlpha');
     expect(routeMapSource).toContain('this.routeMapPoint(sourceStart.x, sourceStart.y)');
     expect(routeMapSource).not.toContain('createVerifiedContourZone');
