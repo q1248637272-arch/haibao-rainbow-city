@@ -62,6 +62,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   private navScrim: Phaser.GameObjects.Rectangle | null = null;
   private routeIntelPanel: Phaser.GameObjects.Container | null = null;
   private hoveredRouteHotspot: RouteMapHotspotDefinition | null = null;
+  private trackedRouteHotspot: RouteMapHotspotDefinition | null = null;
   private readonly routeMaskActiveBoundsCache = new Map<string, RouteMaskActiveBounds>();
 
   public constructor() {
@@ -85,6 +86,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     this.navScrim = null;
     this.routeIntelPanel = null;
     this.hoveredRouteHotspot = null;
+    this.trackedRouteHotspot = null;
   }
 
   public preload(): void {
@@ -93,6 +95,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
 
   public create(): void {
     this.cameras.main.setBackgroundColor(BACKGROUND_COLOR);
+    this.trackedRouteHotspot = this.pickRouteRecommendation();
     this.drawMap();
 
     this.createNavButton(54, 42, '返回', () => this.scene.start(this.fromScene));
@@ -116,7 +119,8 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       this.scene.start(SceneKey.SAVE_SLOTS, { fromScene: SceneKey.LEGACY_ROUTE_MAP }),
     );
     this.createNavButton(758, 42, '签到', () => this.scene.start(SceneKey.VIP_PANEL));
-    this.drawRouteIntelPanel();
+    this.drawRouteIntelPanel(this.routePanelHotspot());
+    this.redrawRoutePreview();
 
     this.scale.on(Phaser.Scale.Events.RESIZE, this.refreshRouteLayout, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -128,6 +132,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       this.routeBackground = null;
       this.navScrim = null;
       this.hoveredRouteHotspot = null;
+      this.trackedRouteHotspot = null;
     });
     this.showReturnToast();
     AudioManager.play('world_rainbow', undefined, this);
@@ -163,7 +168,8 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     this.routeBackground?.refresh();
     this.navScrim?.setSize(this.routeViewportWidth(), 88);
     this.refreshRouteHotspots();
-    this.drawRouteIntelPanel(this.hoveredRouteHotspot);
+    this.redrawRoutePreview();
+    this.drawRouteIntelPanel(this.routePanelHotspot());
   }
 
   private routeViewportWidth(): number {
@@ -338,15 +344,15 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     zone
       .on('pointerover', () => {
         this.hoveredRouteHotspot = hotspot;
-        this.drawRouteHotspotState(view, true);
-        this.drawRoutePreview(hotspot);
-        this.drawRouteIntelPanel(hotspot);
+        this.refreshRouteHotspotStates(hotspot.id);
+        this.redrawRoutePreview();
+        this.drawRouteIntelPanel(this.routePanelHotspot());
       })
       .on('pointerout', () => {
         if (this.hoveredRouteHotspot?.id === hotspot.id) this.hoveredRouteHotspot = null;
-        this.drawRouteHotspotState(view, false);
-        this.clearRoutePreview();
-        this.drawRouteIntelPanel();
+        this.refreshRouteHotspotStates();
+        this.redrawRoutePreview();
+        this.drawRouteIntelPanel(this.routePanelHotspot());
       })
       .on('pointerup', () => this.openHotspot(hotspot));
     this.routeHotspotViews.push(view);
@@ -363,19 +369,48 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     }
   }
 
+  private refreshRouteHotspotStates(activeHotspotId: string | null = null): void {
+    for (const view of this.routeHotspotViews) {
+      this.drawRouteHotspotState(view, view.hotspot.id === activeHotspotId);
+    }
+  }
+
+  private pickRouteRecommendation(): RouteMapHotspotDefinition | null {
+    return (
+      ROUTE_MAP_HOTSPOTS.find(
+        (hotspot) =>
+          legacyLocationHasPatrol(hotspot.locationId) &&
+          !hasClaimedLegacyPatrolToday(hotspot.locationId),
+      ) ?? null
+    );
+  }
+
+  private routePanelHotspot(): RouteMapHotspotDefinition | null {
+    return this.hoveredRouteHotspot ?? this.trackedRouteHotspot;
+  }
+
+  private isTrackedRouteHotspot(hotspot: RouteMapHotspotDefinition): boolean {
+    return this.trackedRouteHotspot?.id === hotspot.id;
+  }
+
   private routeChallengeLabel(locationId: RouteMapHotspotDefinition['locationId']): string {
-    if (!legacyLocationHasPatrol(locationId)) return recommendedLevelLabel(locationId);
-    return `${recommendedLevelLabel(locationId)} · ${
+    const prefix = this.trackedRouteHotspot?.locationId === locationId ? '推荐 · ' : '';
+    if (!legacyLocationHasPatrol(locationId)) {
+      return `${prefix}${recommendedLevelLabel(locationId)}`;
+    }
+    return `${prefix}${recommendedLevelLabel(locationId)} · ${
       hasClaimedLegacyPatrolToday(locationId) ? '已巡护' : '巡护'
     }`;
   }
 
   private routeChallengeColor(locationId: RouteMapHotspotDefinition['locationId']): string {
+    if (this.trackedRouteHotspot?.locationId === locationId) return '#ffe67a';
     if (!legacyLocationHasPatrol(locationId)) return '#fff4a8';
     return hasClaimedLegacyPatrolToday(locationId) ? '#bff8ff' : '#fff4a8';
   }
 
   private routePatrolColor(locationId: RouteMapHotspotDefinition['locationId']): number {
+    if (this.trackedRouteHotspot?.locationId === locationId) return 0xffd166;
     if (!legacyLocationHasPatrol(locationId)) return 0x8fe8ff;
     return hasClaimedLegacyPatrolToday(locationId) ? 0x8fe8ff : 0xffd166;
   }
@@ -436,15 +471,25 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     const diff = difficultyForLocation(hotspot.locationId);
     const hasPatrol = legacyLocationHasPatrol(hotspot.locationId);
     const patrolDone = hasClaimedLegacyPatrolToday(hotspot.locationId);
+    const tracked = this.isTrackedRouteHotspot(hotspot);
     const patrolLine = hasPatrol
       ? `${patrolDone ? '巡护已完成' : '今日巡护'} · ${legacyPatrolRewardSummary(
           hotspot.locationId,
         )}`
       : '暂无野外巡护';
+    const title = tracked ? `今日推荐 · ${hotspot.label}` : hotspot.label;
 
     this.addRoutePatrolStamp(panel, width - 48, 48, 58);
     panel.add([
-      this.addRouteIntelText(16, 12, hotspot.label, 18, '#ffffff', width - 106, true),
+      this.addRouteIntelText(
+        16,
+        12,
+        title,
+        18,
+        tracked ? '#ffe67a' : '#ffffff',
+        width - 106,
+        true,
+      ),
       this.addRouteIntelText(
         16,
         40,
@@ -526,6 +571,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
 
   private drawRouteHotspotState(view: RouteMapHotspotView, active: boolean): void {
     const labelPoint = this.routeLabelPoint(view.mask);
+    const tracked = this.isTrackedRouteHotspot(view.hotspot);
     view.challengeText
       .setText(this.routeChallengeLabel(view.hotspot.locationId))
       .setColor(this.routeChallengeColor(view.hotspot.locationId));
@@ -533,12 +579,12 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     const labelHeight = ROUTE_MAP_NAME_LABEL_HEIGHT;
     const patrolColor = this.routePatrolColor(view.hotspot.locationId);
 
-    view.edge.setAlpha(active ? 0.95 : 0);
+    view.edge.setAlpha(active ? 0.95 : tracked ? 0.62 : 0);
     view.labelText.setPosition(labelPoint.x, labelPoint.y);
     view.challengeText.setPosition(labelPoint.x, labelPoint.y + 24);
     view.labelBg.clear();
-    view.labelBg.fillStyle(active ? 0xff9f2f : 0x1599c8, 0.94);
-    view.labelBg.lineStyle(2, 0xffffff, 0.96);
+    view.labelBg.fillStyle(active ? 0xff9f2f : tracked ? 0xc98f17 : 0x1599c8, 0.94);
+    view.labelBg.lineStyle(2, tracked ? 0xfff0a8 : 0xffffff, active || tracked ? 0.96 : 0.82);
     view.labelBg.fillRoundedRect(
       labelPoint.x - labelWidth / 2,
       labelPoint.y - labelHeight / 2,
@@ -556,7 +602,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
 
     const challengeWidth = Math.max(92, Math.min(190, view.challengeText.width + 18));
     view.labelBg.fillStyle(0x0b3768, 0.84);
-    view.labelBg.lineStyle(1, patrolColor, active ? 0.9 : 0.64);
+    view.labelBg.lineStyle(1, patrolColor, active || tracked ? 0.9 : 0.64);
     view.labelBg.fillRoundedRect(
       labelPoint.x - challengeWidth / 2,
       labelPoint.y + 12,
@@ -643,6 +689,15 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     }
 
     this.routePreview = route;
+  }
+
+  private redrawRoutePreview(): void {
+    const target = this.routePanelHotspot();
+    if (target) {
+      this.drawRoutePreview(target);
+      return;
+    }
+    this.clearRoutePreview();
   }
 
   private clearRoutePreview(): void {

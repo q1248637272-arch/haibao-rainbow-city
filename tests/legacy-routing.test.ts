@@ -101,6 +101,11 @@ describe('legacy map routing', () => {
 
     expect(routeMapSource).toContain('drawRouteIntelPanel');
     expect(routeMapSource).toContain('routeChallengeLabel');
+    expect(routeMapSource).toContain('trackedRouteHotspot');
+    expect(routeMapSource).toContain('pickRouteRecommendation');
+    expect(routeMapSource).toContain('routePanelHotspot');
+    expect(routeMapSource).toContain('redrawRoutePreview');
+    expect(routeMapSource).toContain('今日推荐');
     expect(routeMapSource).toContain('legacyPatrolRewardSummary');
     expect(routeMapSource).toContain('hasClaimedLegacyPatrolToday');
     expect(routeMapSource).toContain('containsRouteMaskPoint');
