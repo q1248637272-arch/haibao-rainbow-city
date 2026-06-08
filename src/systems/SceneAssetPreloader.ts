@@ -7,6 +7,7 @@ import {
   HOME_V3_BACKGROUND_KEY,
 } from '@/data/homeHotspots';
 import { ITEMS } from '@/data/items';
+import { LOCATION_MAP_HOTSPOT_IMAGE_ASSETS } from '@/data/locationMapHotspots';
 import { PETS } from '@/data/pets';
 import { ROUTE_MAP_HOTSPOT_IMAGE_ASSETS } from '@/data/routeMapHotspots';
 import {
@@ -413,6 +414,7 @@ export function preloadLegacyLocationAssets(
     itemIds: def.hotspots
       .flatMap((hotspot) => hotspot.action.reward?.items ?? [])
       .map((item) => item.itemId),
+    imageAssets: LOCATION_MAP_HOTSPOT_IMAGE_ASSETS,
     spritesheets: VIRTUAL_PLAYER_AVATAR_ASSETS,
   });
 }

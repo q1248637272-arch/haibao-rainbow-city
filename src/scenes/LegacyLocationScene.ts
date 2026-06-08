@@ -7,11 +7,16 @@ import {
   recommendedLevelLabel,
   rollLocationWildLevel,
 } from '@/data/locationDifficulty';
+import {
+  LOCATION_MAP_HOTSPOT_IMAGE_MASKS,
+  LOCATION_MAP_SOURCE_SIZE,
+  type LocationMapHotspotImageMask,
+} from '@/data/locationMapHotspots';
 import { getPet } from '@/data/pets';
 import { completeActivityTask, consumePendingActivityTask } from '@/systems/ActivityProgress';
 import { gameEvents } from '@/systems/EventBus';
 import { buildGameplaySuggestions } from '@/systems/GameplayAdvisor';
-import { isPortalLikeHotspot, legacyHotspotContour } from '@/systems/LegacyHotspotVisuals';
+import { isPortalLikeHotspot } from '@/systems/LegacyHotspotVisuals';
 import { PlayerState } from '@/systems/PlayerState';
 import { rollEncounter } from '@/systems/EncounterRoller';
 import { motionScale, roamingPetBudget, virtualPlayerBudget } from '@/systems/PerformanceProfile';
@@ -24,11 +29,14 @@ import {
 } from '@/systems/VirtualPlayers';
 import { findPixelPath, type PixelPoint } from '@/systems/PixelPathfinding';
 import { createGameplayAdvisorPanel } from '@/ui/GameplayAdvisorPanel';
-import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { createPortalFlash } from '@/ui/PortalFlash';
 import { ensurePetTexture } from '@/utils/placeholder';
-import { createResponsiveMapBackground } from '@/utils/responsiveBackground';
+import {
+  createResponsiveMapBackground,
+  type ResponsiveMapBackground,
+  type ResponsiveMapDisplayBounds,
+} from '@/utils/responsiveBackground';
 import { isWildBattleBlocked, toggleWildBattleBlocked } from '@/systems/WildBattleSettings';
 import {
   hasClaimedLegacyPatrolToday,
@@ -72,6 +80,12 @@ const LOCATION_VIRTUAL_PLAYER_COUNT = 2;
 const ENCOUNTER_RETURN_COOLDOWN_MS = 1800;
 const ENCOUNTER_RESUME_MOVE_DISTANCE = 28;
 const PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2';
+const LOCATION_LOGIC_SIZE = { width: GAME_WIDTH, height: GAME_HEIGHT } as const;
+
+type LocationMappedGameObject = Phaser.GameObjects.GameObject & {
+  setPosition: (x: number, y?: number) => LocationMappedGameObject;
+  setScale?: (x: number, y?: number) => LocationMappedGameObject;
+};
 
 interface WalkTarget {
   readonly x: number;
@@ -84,6 +98,8 @@ interface RoamingPet {
   readonly petId: string;
   readonly encounterZoneId: string;
   level: number;
+  x: number;
+  y: number;
   sprite: Phaser.GameObjects.Image;
   shadow: Phaser.GameObjects.Ellipse;
   label: Phaser.GameObjects.Text;
@@ -101,6 +117,8 @@ interface RoamingPet {
 
 interface RoamingVirtualPlayer {
   readonly data: VirtualPlayer;
+  x: number;
+  y: number;
   sprite: Phaser.GameObjects.Sprite;
   shadow: Phaser.GameObjects.Ellipse;
   label: Phaser.GameObjects.Text;
@@ -112,6 +130,23 @@ interface RoamingVirtualPlayer {
   homeY: number;
   roamRadius: number;
   idleUntil: number;
+}
+
+interface LocationMappedObject {
+  readonly object: LocationMappedGameObject;
+  readonly x: number;
+  readonly y: number;
+  readonly baseScale?: number;
+}
+
+interface LocationMapHotspotView {
+  readonly hotspot: LegacyLocationHotspot;
+  readonly mask: LocationMapHotspotImageMask;
+  readonly edge: Phaser.GameObjects.Image;
+  readonly labelBg: Phaser.GameObjects.Graphics;
+  readonly label: Phaser.GameObjects.Text;
+  readonly zone: Phaser.GameObjects.Zone;
+  readonly hitArea: Phaser.Geom.Rectangle;
 }
 
 const LOCATION_PET_POOLS: Readonly<Record<string, readonly string[]>> = {
@@ -217,6 +252,10 @@ export class LegacyLocationScene extends Phaser.Scene {
   private escapedFromBattle = false;
   private justDefeatedTrainerName: string | null = null;
   private justLostTrainerBattle = false;
+  private locationBackground: ResponsiveMapBackground | null = null;
+  private mappedLocationObjects: LocationMappedObject[] = [];
+  private locationHotspotViews: LocationMapHotspotView[] = [];
+  private playerLogicPoint = { x: 0, y: 0 };
 
   public constructor() {
     super({ key: SceneKey.LEGACY_LOCATION });
@@ -242,6 +281,9 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.encounterCooldownUntil = 0;
     this.encounterRequiresPlayerMove = false;
     this.encounterResumePoint = null;
+    this.locationBackground = null;
+    this.mappedLocationObjects = [];
+    this.locationHotspotViews = [];
   }
 
   public preload(): void {
@@ -294,7 +336,12 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.drawGameplayAdvisor();
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshLocationLayout, this);
+      this.destroyLocationHotspots();
       this.clearToast();
+      this.locationBackground = null;
+      this.mappedLocationObjects = [];
+      this.locationHotspotViews = [];
     });
 
     this.showReturnToast();
@@ -313,14 +360,16 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private drawScene(def: LegacyLocationDef): void {
-    createResponsiveMapBackground(this, def.textureKey, {
+    this.locationBackground = createResponsiveMapBackground(this, def.textureKey, {
+      fitMode: 'contain',
       interactive: true,
       onPointerUp: (pointer: Phaser.Input.Pointer) => {
         if (this.hotspotPointerHandled) {
           this.hotspotPointerHandled = false;
           return;
         }
-        this.walkToPoint(def, pointer.worldX, pointer.worldY);
+        const point = this.screenToLocationLogicPoint(pointer.worldX, pointer.worldY);
+        this.walkToPoint(def, point.x, point.y);
       },
     });
 
@@ -334,17 +383,19 @@ export class LegacyLocationScene extends Phaser.Scene {
     for (const hotspot of def.hotspots) {
       this.drawHotspot(hotspot);
     }
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.refreshLocationLayout, this);
   }
 
   private setupPlayer(def: LegacyLocationDef): void {
+    this.playerLogicPoint = { x: def.playerStart.x, y: def.playerStart.y - 18 };
     this.playerShadow = this.add
-      .ellipse(def.playerStart.x, def.playerStart.y + 20, 52, 17, 0x000000, 0.26)
+      .ellipse(0, 0, 52, 17, 0x000000, 0.26)
       .setDepth(400);
     this.player = this.add
-      .sprite(def.playerStart.x, def.playerStart.y - 18, currentPlayerSheetKey(), 0)
+      .sprite(0, 0, currentPlayerSheetKey(), 0)
       .setOrigin(0.5, 0.88)
-      .setScale(0.74)
       .setDepth(430);
+    this.updatePlayerVisual();
   }
 
   private ensurePlayerAnimation(): void {
@@ -352,27 +403,44 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private drawHotspot(hotspot: LegacyLocationHotspot): void {
-    const radius = hotspot.radius ?? 28;
-    const contour = legacyHotspotContour(hotspot);
-    const contourBounds = createVerifiedContourZone(this, {
-      area: contour,
-      depth: 1200,
-      label: `${this.locationId}.${hotspot.id}`,
-      minWidth: 24,
-      minHeight: 18,
-      worldBounds: { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT },
-    });
     if (isPortalLikeHotspot(hotspot.action)) {
-      createPortalFlash(this, hotspot.x, hotspot.y, {
-        radius: Math.max(radius + 2, contourBounds.bounds.width * 0.32),
+      const flash = createPortalFlash(this, 0, 0, {
+        radius: Math.max((hotspot.radius ?? 28) + 2, 34),
         depth: 358,
         yScale: 0.7,
       });
+      this.trackLocationObject(flash, hotspot.x, hotspot.y, 1);
     }
-    const g = this.add.graphics().setDepth(360);
+
+    if (!this.drawImageMaskHotspot(hotspot)) {
+      console.warn(
+        `[LegacyLocationScene] missing location-map mask hotspot assets: ${this.locationId}.${hotspot.id}`,
+      );
+    }
+  }
+
+  private drawImageMaskHotspot(hotspot: LegacyLocationHotspot): boolean {
+    const mask = LOCATION_MAP_HOTSPOT_IMAGE_MASKS[this.locationId]?.[hotspot.id];
+    if (
+      !mask ||
+      !this.textures.exists(mask.maskTextureKey) ||
+      !this.textures.exists(mask.edgeTextureKey)
+    ) {
+      return false;
+    }
+
+    const rect = this.locationMaskDisplayRect(mask);
+    const edge = this.add
+      .image(rect.x, rect.y, mask.edgeTextureKey)
+      .setOrigin(0)
+      .setDisplaySize(rect.width, rect.height)
+      .setDepth(360)
+      .setAlpha(0)
+      .setBlendMode(Phaser.BlendModes.ADD);
     const labelBg = this.add.graphics().setDepth(361);
+    const labelPoint = this.locationMapSourcePoint(mask.labelX, mask.labelY);
     const label = this.add
-      .text(hotspot.x, contourBounds.bounds.top - 20, this.hotspotLabel(hotspot), {
+      .text(labelPoint.x, labelPoint.y, this.hotspotLabel(hotspot), {
         fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
         fontSize: '15px',
         color: '#ffffff',
@@ -384,51 +452,215 @@ export class LegacyLocationScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(362)
       .setAlpha(0);
+    const hitArea = new Phaser.Geom.Rectangle(0, 0, rect.width, rect.height);
+    const contains: Phaser.Types.Input.HitAreaCallback = (_hitArea, x, y) =>
+      this.containsLocationMaskPoint(mask, hitArea.width, hitArea.height, x, y);
+    const zone = this.add
+      .zone(rect.x, rect.y, rect.width, rect.height)
+      .setOrigin(0)
+      .setDepth(1200)
+      .setInteractive(hitArea, contains);
+    if (zone.input) zone.input.cursor = 'pointer';
+
     const color = this.hotspotColor(hotspot.action);
     const draw = (hover: boolean): void => {
-      g.clear();
       labelBg.clear();
       label.setText(this.hotspotLabel(hotspot));
       label.setAlpha(hover ? 1 : 0);
+      edge.setAlpha(hover ? 0.98 : 0);
       if (hover) {
+        const point = this.locationMapSourcePoint(mask.labelX, mask.labelY);
         const width = Math.max(96, Math.min(214, label.width + 22));
         const height = label.height + 12;
+        label.setPosition(point.x, point.y);
         labelBg.fillStyle(0x0b3768, 0.86);
         labelBg.lineStyle(2, color, 0.88);
         labelBg.fillRoundedRect(
-          hotspot.x - width / 2,
-          contourBounds.bounds.top - height - 28,
+          point.x - width / 2,
+          point.y - height - 8,
           width,
           height,
           7,
         );
         labelBg.strokeRoundedRect(
-          hotspot.x - width / 2,
-          contourBounds.bounds.top - height - 28,
+          point.x - width / 2,
+          point.y - height - 8,
           width,
           height,
           7,
         );
       }
-      drawRaisedContour(g, contourBounds.area, {
-        color,
-        active: hover,
-        fillAlpha: hover ? 0.16 : 0.04,
-      });
       label.setColor('#fff7c7');
     };
     draw(false);
 
-    const hit = contourBounds.zone;
-    hit.on('pointerover', () => draw(true));
-    hit.on('pointerout', () => draw(false));
-    hit.on('pointerup', () => {
+    zone.on('pointerover', () => draw(true));
+    zone.on('pointerout', () => draw(false));
+    zone.on('pointerup', () => {
       this.hotspotPointerHandled = true;
       this.time.delayedCall(30, () => {
         this.hotspotPointerHandled = false;
       });
       this.walkToHotspot(hotspot);
     });
+    this.locationHotspotViews.push({ hotspot, mask, edge, labelBg, label, zone, hitArea });
+
+    return true;
+  }
+
+  private destroyLocationHotspots(): void {
+    for (const view of this.locationHotspotViews) {
+      view.edge.destroy();
+      view.labelBg.destroy();
+      view.label.destroy();
+      view.zone.destroy();
+    }
+    this.locationHotspotViews = [];
+  }
+
+  private refreshLocationLayout(): void {
+    this.locationBackground?.refresh();
+    this.refreshMappedLocationObjects();
+    this.refreshLocationHotspots();
+    this.updatePlayerVisual();
+    for (const pet of this.roamingPets) {
+      this.updateRoamingPetVisual(pet, this.time.now, false, 0, 0);
+    }
+    for (const vp of this.virtualPlayers) {
+      this.updateVirtualPlayerVisual(vp, false, 0);
+    }
+  }
+
+  private locationDisplayBounds(): ResponsiveMapDisplayBounds {
+    return (
+      this.locationBackground?.getDisplayBounds() ?? {
+        left: 0,
+        top: 0,
+        width: GAME_WIDTH,
+        height: GAME_HEIGHT,
+      }
+    );
+  }
+
+  private locationVisualScale(): number {
+    const bounds = this.locationDisplayBounds();
+    return Math.min(
+      bounds.width / LOCATION_LOGIC_SIZE.width,
+      bounds.height / LOCATION_LOGIC_SIZE.height,
+    );
+  }
+
+  private locationLogicPoint(x: number, y: number): { readonly x: number; readonly y: number } {
+    const bounds = this.locationDisplayBounds();
+    return {
+      x: bounds.left + x * (bounds.width / LOCATION_LOGIC_SIZE.width),
+      y: bounds.top + y * (bounds.height / LOCATION_LOGIC_SIZE.height),
+    };
+  }
+
+  private screenToLocationLogicPoint(
+    x: number,
+    y: number,
+  ): { readonly x: number; readonly y: number } {
+    const bounds = this.locationDisplayBounds();
+    return {
+      x: Phaser.Math.Clamp(
+        ((x - bounds.left) / Math.max(1, bounds.width)) * LOCATION_LOGIC_SIZE.width,
+        0,
+        LOCATION_LOGIC_SIZE.width,
+      ),
+      y: Phaser.Math.Clamp(
+        ((y - bounds.top) / Math.max(1, bounds.height)) * LOCATION_LOGIC_SIZE.height,
+        0,
+        LOCATION_LOGIC_SIZE.height,
+      ),
+    };
+  }
+
+  private locationMapSourcePoint(
+    x: number,
+    y: number,
+  ): { readonly x: number; readonly y: number } {
+    const bounds = this.locationDisplayBounds();
+    return {
+      x: bounds.left + x * (bounds.width / LOCATION_MAP_SOURCE_SIZE.width),
+      y: bounds.top + y * (bounds.height / LOCATION_MAP_SOURCE_SIZE.height),
+    };
+  }
+
+  private locationMaskDisplayRect(mask: LocationMapHotspotImageMask): {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  } {
+    const bounds = this.locationDisplayBounds();
+    const scaleX = bounds.width / LOCATION_MAP_SOURCE_SIZE.width;
+    const scaleY = bounds.height / LOCATION_MAP_SOURCE_SIZE.height;
+    return {
+      x: bounds.left + mask.x * scaleX,
+      y: bounds.top + mask.y * scaleY,
+      width: mask.width * scaleX,
+      height: mask.height * scaleY,
+    };
+  }
+
+  private containsLocationMaskPoint(
+    mask: LocationMapHotspotImageMask,
+    displayWidth: number,
+    displayHeight: number,
+    x: number,
+    y: number,
+  ): boolean {
+    if (displayWidth <= 0 || displayHeight <= 0) return false;
+    if (x < 0 || y < 0 || x >= displayWidth || y >= displayHeight) return false;
+    const sampleX = Math.min(mask.width - 1, Math.floor((x / displayWidth) * mask.width));
+    const sampleY = Math.min(mask.height - 1, Math.floor((y / displayHeight) * mask.height));
+    const alpha = this.textures.getPixelAlpha(sampleX, sampleY, mask.maskTextureKey);
+    return Number.isFinite(alpha) && alpha >= mask.alphaTolerance;
+  }
+
+  private refreshLocationHotspots(): void {
+    for (const view of this.locationHotspotViews) {
+      const rect = this.locationMaskDisplayRect(view.mask);
+      const labelPoint = this.locationMapSourcePoint(view.mask.labelX, view.mask.labelY);
+      view.edge.setPosition(rect.x, rect.y).setDisplaySize(rect.width, rect.height);
+      view.label.setPosition(labelPoint.x, labelPoint.y);
+      view.hitArea.setTo(0, 0, rect.width, rect.height);
+      view.zone.setPosition(rect.x, rect.y).setSize(rect.width, rect.height);
+      view.labelBg.clear();
+    }
+  }
+
+  private trackLocationObject<T extends LocationMappedGameObject>(
+    object: T,
+    x: number,
+    y: number,
+    baseScale?: number,
+  ): T {
+    const item: LocationMappedObject = {
+      object,
+      x,
+      y,
+      ...(baseScale === undefined ? {} : { baseScale }),
+    };
+    this.mappedLocationObjects.push(item);
+    this.syncMappedLocationObject(item);
+    return object;
+  }
+
+  private refreshMappedLocationObjects(): void {
+    for (const item of this.mappedLocationObjects) {
+      this.syncMappedLocationObject(item);
+    }
+  }
+
+  private syncMappedLocationObject(item: LocationMappedObject): void {
+    const point = this.locationLogicPoint(item.x, item.y);
+    item.object.setPosition(point.x, point.y);
+    if (item.baseScale !== undefined && item.object.setScale) {
+      item.object.setScale(item.baseScale * this.locationVisualScale());
+    }
   }
 
   private hotspotColor(action: LegacyAction): number {
@@ -469,16 +701,15 @@ export class LegacyLocationScene extends Phaser.Scene {
       ? npc.textureKey
       : 'legacy_player_fairy';
     const shadow = this.add
-      .ellipse(npc.x, npc.y + 18, 42, 14, 0x000000, 0.24)
+      .ellipse(0, 0, 42, 14, 0x000000, 0.24)
       .setDepth(420 + npc.y);
     const sprite = this.add
-      .image(npc.x, npc.y, textureKey)
+      .image(0, 0, textureKey)
       .setOrigin(0.5, 0.88)
-      .setScale(npc.scale ?? 0.64)
       .setDepth(430 + npc.y)
       .setInteractive({ useHandCursor: true });
     const label = this.add
-      .text(npc.x, npc.y - 58, npc.name, {
+      .text(0, 0, npc.name, {
         fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
         fontSize: '15px',
         color: '#fff7c7',
@@ -488,6 +719,9 @@ export class LegacyLocationScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(sprite.depth + 1)
       .setAlpha(0);
+    this.trackLocationObject(shadow, npc.x, npc.y + 18, 1);
+    this.trackLocationObject(sprite, npc.x, npc.y, npc.scale ?? 0.64);
+    this.trackLocationObject(label, npc.x, npc.y - 58, 1);
     const showLabel = (): void => {
       label.setAlpha(1);
     };
@@ -546,9 +780,9 @@ export class LegacyLocationScene extends Phaser.Scene {
       const x = point.x;
       const y = point.y;
       const textureKey = ensurePetTexture(this, petId);
-      const shadow = this.add.ellipse(x, y + 18, 38, 13, 0x000000, 0.22).setDepth(410);
+      const shadow = this.add.ellipse(0, 0, 38, 13, 0x000000, 0.22).setDepth(410);
       const sprite = this.add
-        .image(x, y, textureKey)
+        .image(0, 0, textureKey)
         .setOrigin(0.5, 0.82)
         .setInteractive({ useHandCursor: true })
         .setDepth(430 + y);
@@ -558,10 +792,9 @@ export class LegacyLocationScene extends Phaser.Scene {
       };
       const targetSize = textureKey.startsWith('legacy_doll_') ? 64 : 48;
       const baseScale = targetSize / Math.max(source.width, source.height);
-      sprite.setScale(baseScale);
       const name = getPet(petId)?.name ?? '旧版精灵';
       const label = this.add
-        .text(x, y - 48, name, {
+        .text(0, 0, name, {
           fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
           fontSize: '15px',
           color: '#ffffff',
@@ -575,6 +808,8 @@ export class LegacyLocationScene extends Phaser.Scene {
         petId,
         encounterZoneId: zoneId,
         level: rollLocationWildLevel(this.locationId),
+        x,
+        y,
         sprite,
         shadow,
         label,
@@ -589,6 +824,7 @@ export class LegacyLocationScene extends Phaser.Scene {
         baseScale,
         animationSeed: Phaser.Math.FloatBetween(0, Math.PI * 2),
       };
+      this.updateRoamingPetVisual(pet, this.time.now, false, 0, 0);
       this.pickPetTarget(def, pet, this.time.now);
       sprite
         .on('pointerover', () => label.setAlpha(1))
@@ -617,17 +853,16 @@ export class LegacyLocationScene extends Phaser.Scene {
 
     for (const data of players) {
       const point = this.randomLocationPoint(def, 140);
-      const shadow = this.add.ellipse(point.x, point.y + 20, 46, 15, 0x000000, 0.25).setDepth(414);
+      const shadow = this.add.ellipse(0, 0, 46, 15, 0x000000, 0.25).setDepth(414);
       const sprite = this.add
-        .sprite(point.x, point.y - 14, data.avatarKey, 0)
+        .sprite(0, 0, data.avatarKey, 0)
         .setOrigin(0.5, 0.88)
-        .setScale(0.64)
         .setTint(data.tint)
         .setDepth(434 + point.y)
         .setInteractive({ useHandCursor: true });
       const labelText = this.virtualPlayerLabel(data);
       const label = this.add
-        .text(point.x, point.y - 74, labelText, {
+        .text(0, 0, labelText, {
           fontFamily: 'SimHei, Microsoft YaHei, sans-serif',
           fontSize: '15px',
           color: '#fff7c7',
@@ -640,6 +875,8 @@ export class LegacyLocationScene extends Phaser.Scene {
         .setAlpha(0.92);
       const vp: RoamingVirtualPlayer = {
         data,
+        x: point.x,
+        y: point.y - 14,
         sprite,
         shadow,
         label,
@@ -653,6 +890,7 @@ export class LegacyLocationScene extends Phaser.Scene {
         idleUntil: 0,
       };
       this.ensureVirtualPlayerAnimation(data.avatarKey);
+      this.updateVirtualPlayerVisual(vp, false, 0);
       this.pickVirtualPlayerTarget(def, vp, this.time.now);
       sprite
         .on('pointerover', () => label.setAlpha(1))
@@ -670,8 +908,8 @@ export class LegacyLocationScene extends Phaser.Scene {
   private updateVirtualPlayers(time: number, delta: number): void {
     const def = LEGACY_LOCATIONS[this.locationId];
     for (const vp of this.virtualPlayers) {
-      const dx = vp.targetX - vp.sprite.x;
-      const dy = vp.targetY - vp.sprite.y;
+      const dx = vp.targetX - vp.x;
+      const dy = vp.targetY - vp.y;
       const dist = Math.hypot(dx, dy);
       const moving = time >= vp.idleUntil && vp.speed > 0 && dist >= 6 && time < vp.retargetAt;
       if (time < vp.idleUntil) {
@@ -684,7 +922,8 @@ export class LegacyLocationScene extends Phaser.Scene {
         continue;
       }
       const step = (vp.speed * delta) / 1000;
-      vp.sprite.setPosition(vp.sprite.x + (dx / dist) * step, vp.sprite.y + (dy / dist) * step);
+      vp.x += (dx / dist) * step;
+      vp.y += (dy / dist) * step;
       vp.sprite.setFlipX(dx < 0);
       this.updateVirtualPlayerVisual(vp, moving, dx);
     }
@@ -699,9 +938,14 @@ export class LegacyLocationScene extends Phaser.Scene {
       vp.sprite.anims.stop();
       vp.sprite.setFrame(0);
     }
-    vp.shadow.setPosition(vp.sprite.x, vp.sprite.y + 20);
-    vp.label.setPosition(vp.sprite.x, vp.sprite.y - 74);
-    vp.sprite.setDepth(434 + vp.sprite.y);
+    const scale = this.locationVisualScale();
+    const spritePoint = this.locationLogicPoint(vp.x, vp.y);
+    const shadowPoint = this.locationLogicPoint(vp.x, vp.y + 20);
+    const labelPoint = this.locationLogicPoint(vp.x, vp.y - 74);
+    vp.sprite.setPosition(spritePoint.x, spritePoint.y).setScale(0.64 * scale);
+    vp.shadow.setPosition(shadowPoint.x, shadowPoint.y).setScale(scale);
+    vp.label.setPosition(labelPoint.x, labelPoint.y).setScale(scale);
+    vp.sprite.setDepth(434 + spritePoint.y);
     vp.shadow.setDepth(vp.sprite.depth - 1);
     vp.label.setDepth(vp.sprite.depth + 1);
   }
@@ -712,8 +956,8 @@ export class LegacyLocationScene extends Phaser.Scene {
     time: number,
   ): void {
     if (Math.random() < 0.36) {
-      vp.targetX = vp.sprite.x;
-      vp.targetY = vp.sprite.y;
+      vp.targetX = vp.x;
+      vp.targetY = vp.y;
       vp.speed = 0;
       vp.idleUntil = time + Phaser.Math.Between(1100, 3200);
       vp.retargetAt = vp.idleUntil;
@@ -730,8 +974,8 @@ export class LegacyLocationScene extends Phaser.Scene {
   private updateRoamingPets(time: number, delta: number): void {
     const def = LEGACY_LOCATIONS[this.locationId];
     for (const pet of this.roamingPets) {
-      const dx = pet.targetX - pet.sprite.x;
-      const dy = pet.targetY - pet.sprite.y;
+      const dx = pet.targetX - pet.x;
+      const dy = pet.targetY - pet.y;
       const dist = Math.hypot(dx, dy);
       const moving = time >= pet.idleUntil && pet.speed > 0 && dist >= 6 && time < pet.retargetAt;
       if (time < pet.idleUntil) {
@@ -744,7 +988,8 @@ export class LegacyLocationScene extends Phaser.Scene {
         continue;
       }
       const step = (pet.speed * delta) / 1000;
-      pet.sprite.setPosition(pet.sprite.x + (dx / dist) * step, pet.sprite.y + (dy / dist) * step);
+      pet.x += (dx / dist) * step;
+      pet.y += (dy / dist) * step;
       pet.sprite.setFlipX(dx < 0);
       this.updateRoamingPetVisual(pet, time, moving, dx, dy);
     }
@@ -769,21 +1014,29 @@ export class LegacyLocationScene extends Phaser.Scene {
     const lean =
       moving && Math.abs(dx) + Math.abs(dy) > 0.1 ? Phaser.Math.Clamp(dx / 90, -1, 1) : 0;
 
-    pet.sprite.setScale(scaleX, scaleY);
+    const mapScale = this.locationVisualScale();
+    const spritePoint = this.locationLogicPoint(pet.x, pet.y);
+    const shadowPoint = this.locationLogicPoint(pet.x, pet.y + 18);
+    const labelPoint = this.locationLogicPoint(pet.x, pet.y - 48 - (moving ? bob * 0.25 : 0));
+    pet.sprite.setPosition(spritePoint.x, spritePoint.y);
+    pet.sprite.setScale(scaleX * mapScale, scaleY * mapScale);
     pet.sprite.setRotation((sway * (moving ? 0.045 : 0.018) + lean * 0.025) * intensity);
-    pet.shadow.setPosition(pet.sprite.x, pet.sprite.y + 18);
-    pet.shadow.setScale(1 + Math.abs(bounce) * (moving ? 0.09 : 0.03), 1 - Math.abs(bounce) * 0.05);
+    pet.shadow.setPosition(shadowPoint.x, shadowPoint.y);
+    pet.shadow.setScale(
+      mapScale * (1 + Math.abs(bounce) * (moving ? 0.09 : 0.03)),
+      mapScale * (1 - Math.abs(bounce) * 0.05),
+    );
     pet.shadow.setAlpha(moving ? 0.18 + Math.abs(bounce) * 0.06 : 0.2);
-    pet.label.setPosition(pet.sprite.x, pet.sprite.y - 48 - (moving ? bob * 0.25 : 0));
-    pet.sprite.setDepth(430 + pet.sprite.y);
+    pet.label.setPosition(labelPoint.x, labelPoint.y).setScale(mapScale);
+    pet.sprite.setDepth(430 + spritePoint.y);
     pet.shadow.setDepth(pet.sprite.depth - 1);
     pet.label.setDepth(pet.sprite.depth + 1);
   }
 
   private pickPetTarget(def: LegacyLocationDef, pet: RoamingPet, time: number): void {
     if (Math.random() < 0.45) {
-      pet.targetX = pet.sprite.x;
-      pet.targetY = pet.sprite.y;
+      pet.targetX = pet.x;
+      pet.targetY = pet.y;
       pet.speed = 0;
       pet.idleUntil = time + Phaser.Math.Between(900, 2600);
       pet.retargetAt = pet.idleUntil;
@@ -803,7 +1056,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     if (this.time.now < this.encounterCooldownUntil) return;
     if (this.encounterRequiresPlayerMove) return;
     for (const pet of this.roamingPets) {
-      const dist = Math.hypot(pet.sprite.x - this.player.x, pet.sprite.y - this.player.y);
+      const dist = Math.hypot(pet.x - this.playerLogicPoint.x, pet.y - this.playerLogicPoint.y);
       if (dist <= PET_TOUCH_RADIUS) {
         this.startRoamingPetBattle(pet);
         return;
@@ -828,15 +1081,15 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.keyboardMoving = true;
     this.setPlayerPosition(
       def,
-      this.player.x + (vx / len) * step,
-      this.player.y + (vy / len) * step,
+      this.playerLogicPoint.x + (vx / len) * step,
+      this.playerLogicPoint.y + (vy / len) * step,
     );
   }
 
   private updateClickMove(def: LegacyLocationDef, delta: number): void {
     if (!this.moveTarget) return;
-    const dx = this.moveTarget.x - this.player.x;
-    const dy = this.moveTarget.y - this.player.y;
+    const dx = this.moveTarget.x - this.playerLogicPoint.x;
+    const dy = this.moveTarget.y - this.playerLogicPoint.y;
     const dist = Math.hypot(dx, dy);
     const step = (PLAYER_SPEED * delta) / 1000;
     if (dist <= Math.max(4, step)) {
@@ -850,8 +1103,8 @@ export class LegacyLocationScene extends Phaser.Scene {
     if (Math.abs(dx) > 2) this.player.setFlipX(dx < 0);
     const moved = this.setPlayerPosition(
       def,
-      this.player.x + (dx / dist) * step,
-      this.player.y + (dy / dist) * step,
+      this.playerLogicPoint.x + (dx / dist) * step,
+      this.playerLogicPoint.y + (dy / dist) * step,
     );
     if (!moved) this.moveTarget = null;
   }
@@ -866,8 +1119,15 @@ export class LegacyLocationScene extends Phaser.Scene {
       this.player.anims.stop();
       this.player.setFrame(0);
     }
-    this.playerShadow.setPosition(this.player.x, this.player.y + 20);
-    this.player.setDepth(430 + this.player.y);
+    const scale = this.locationVisualScale();
+    const playerPoint = this.locationLogicPoint(this.playerLogicPoint.x, this.playerLogicPoint.y);
+    const shadowPoint = this.locationLogicPoint(
+      this.playerLogicPoint.x,
+      this.playerLogicPoint.y + 20,
+    );
+    this.player.setPosition(playerPoint.x, playerPoint.y).setScale(0.74 * scale);
+    this.playerShadow.setPosition(shadowPoint.x, shadowPoint.y).setScale(scale);
+    this.player.setDepth(430 + playerPoint.y);
     this.playerShadow.setDepth(this.player.depth - 1);
   }
 
@@ -889,7 +1149,7 @@ export class LegacyLocationScene extends Phaser.Scene {
 
   private walkToVirtualPlayer(vp: RoamingVirtualPlayer): void {
     const def = LEGACY_LOCATIONS[this.locationId];
-    const target = this.findNearestLocationWalkable(def, vp.sprite.x - 38, vp.sprite.y + 4);
+    const target = this.findNearestLocationWalkable(def, vp.x - 38, vp.y + 4);
     this.setMovePath(def, target);
     const check = this.time.addEvent({
       delay: 120,
@@ -897,7 +1157,7 @@ export class LegacyLocationScene extends Phaser.Scene {
       callback: () => {
         if (
           !this.moveTarget ||
-          Math.hypot(this.player.x - vp.sprite.x, this.player.y - vp.sprite.y) < 74
+          Math.hypot(this.playerLogicPoint.x - vp.x, this.playerLogicPoint.y - vp.y) < 74
         ) {
           check.remove(false);
           this.startVirtualPlayerBattle(vp.data);
@@ -914,7 +1174,7 @@ export class LegacyLocationScene extends Phaser.Scene {
   private setMovePath(def: LegacyLocationDef, target: PixelPoint, action?: LegacyAction): void {
     const path = findPixelPath({
       bounds: def.walkArea,
-      start: { x: this.player.x, y: this.player.y },
+      start: { x: this.playerLogicPoint.x, y: this.playerLogicPoint.y },
       target,
       isWalkable: (x, y) => this.isLocationWalkable(def, x, y),
       cellSize: 24,
@@ -952,7 +1212,8 @@ export class LegacyLocationScene extends Phaser.Scene {
     if (!this.isLocationWalkable(def, next.x, next.y)) {
       return false;
     }
-    this.player.setPosition(next.x, next.y);
+    this.playerLogicPoint = next;
+    this.updatePlayerVisual();
     this.updateEncounterResumeByMovement(next.x, next.y);
     return true;
   }
@@ -1091,7 +1352,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     ) {
       this.encounterCooldownUntil = this.time.now + ENCOUNTER_RETURN_COOLDOWN_MS;
       this.encounterRequiresPlayerMove = true;
-      this.encounterResumePoint = { x: this.player.x, y: this.player.y };
+      this.encounterResumePoint = { x: this.playerLogicPoint.x, y: this.playerLogicPoint.y };
     }
   }
 
@@ -1116,7 +1377,8 @@ export class LegacyLocationScene extends Phaser.Scene {
       const farEnough =
         minDistanceFromPlayer <= 0 ||
         !this.player ||
-        Math.hypot(point.x - this.player.x, point.y - this.player.y) >= minDistanceFromPlayer;
+        Math.hypot(point.x - this.playerLogicPoint.x, point.y - this.playerLogicPoint.y) >=
+          minDistanceFromPlayer;
       if (farEnough && this.isLocationWalkable(def, point.x, point.y)) return point;
     }
     return { x: def.playerStart.x, y: def.playerStart.y };

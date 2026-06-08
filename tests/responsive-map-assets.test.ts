@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config/GameConfig';
+import { LOCATION_MAP_SOURCE_SIZE } from '@/data/locationMapHotspots';
 import { ROUTE_MAP_SOURCE_SIZE } from '@/data/routeMapHotspots';
 import {
   computeEdgeFollowCameraScroll,
@@ -11,14 +12,41 @@ import {
 } from '@/utils/responsiveMapDisplay';
 
 const WIDE_LEGACY_ASSET_PATHS: Readonly<Record<string, string>> = {
-  legacy_7k7k_2: 'assets/legacy/redraw-wide/legacy_7k7k_2_wide_v3_image2.png',
+  legacy_7k7k_2:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_7k7k_2_wide_v1_image2.png',
   legacy_world_map_full: 'assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png',
   legacy_home_walkable: 'assets/legacy/redraw-wide/legacy_home_walkable_wide_v2_image2.png',
   legacy_farm_walkable: 'assets/legacy/redraw-wide/legacy_farm_walkable_wide_v2_image2.png',
   legacy_beach_integrated: 'assets/legacy/redraw-wide/legacy_beach_integrated_wide_v2_image2.png',
   legacy_gym_badge_dojo: 'assets/legacy/redraw-wide/legacy_gym_badge_dojo_wide_v1_image2.png',
+  legacy_library_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_library_clean_wide_v1_image2.png',
+  legacy_lab_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_lab_clean_wide_v1_image2.png',
+  legacy_gym_hall:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_gym_hall_wide_v1_image2.png',
+  legacy_maze_gate_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_maze_gate_clean_wide_v1_image2.png',
+  legacy_doll_base_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_doll_base_clean_wide_v1_image2.png',
+  legacy_energy_field_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_energy_field_clean_wide_v1_image2.png',
   legacy_crystal_cave_clean:
-    'assets/legacy/redraw-wide/legacy_crystal_cave_clean_wide_v1_image2.png',
+    'assets/legacy/image2-restored/location-maps-v1/legacy_crystal_cave_clean_wide_v1_image2.png',
+  legacy_spaceship_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_spaceship_clean_wide_v1_image2.png',
+  legacy_casino_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_casino_clean_wide_v1_image2.png',
+  legacy_bath_center_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_bath_center_clean_wide_v1_image2.png',
+  legacy_coral_market_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_coral_market_clean_wide_v1_image2.png',
+  legacy_tide_playground_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_tide_playground_clean_wide_v1_image2.png',
+  legacy_star_observatory_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_star_observatory_clean_wide_v1_image2.png',
+  legacy_storm_ruins_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_storm_ruins_clean_wide_v1_image2.png',
 };
 
 const EXPANDED_LEGACY_FALLBACKS = [
@@ -41,11 +69,24 @@ describe('responsive wide map redraw assets', () => {
   it('registers the fullscreen redraws used by the most exposed maps', () => {
     expect(Object.keys(WIDE_LEGACY_ASSET_PATHS).sort()).toEqual([
       'legacy_7k7k_2',
+      'legacy_bath_center_clean',
       'legacy_beach_integrated',
+      'legacy_casino_clean',
+      'legacy_coral_market_clean',
       'legacy_crystal_cave_clean',
+      'legacy_doll_base_clean',
+      'legacy_energy_field_clean',
       'legacy_farm_walkable',
       'legacy_gym_badge_dojo',
+      'legacy_gym_hall',
       'legacy_home_walkable',
+      'legacy_lab_clean',
+      'legacy_library_clean',
+      'legacy_maze_gate_clean',
+      'legacy_spaceship_clean',
+      'legacy_star_observatory_clean',
+      'legacy_storm_ruins_clean',
+      'legacy_tide_playground_clean',
       'legacy_world_map_full',
     ]);
   });
@@ -59,8 +100,30 @@ describe('responsive wide map redraw assets', () => {
     }
   });
 
-  it('falls back cleanly when a map has no dedicated wide redraw yet', () => {
-    expect(WIDE_LEGACY_ASSET_PATHS.legacy_lab_clean).toBeUndefined();
+  it('registers dedicated native-wide redraws for every legacy location map', () => {
+    const locationKeys = [
+      'legacy_7k7k_2',
+      'legacy_library_clean',
+      'legacy_gym_hall',
+      'legacy_lab_clean',
+      'legacy_maze_gate_clean',
+      'legacy_doll_base_clean',
+      'legacy_energy_field_clean',
+      'legacy_crystal_cave_clean',
+      'legacy_spaceship_clean',
+      'legacy_casino_clean',
+      'legacy_bath_center_clean',
+      'legacy_coral_market_clean',
+      'legacy_tide_playground_clean',
+      'legacy_star_observatory_clean',
+      'legacy_storm_ruins_clean',
+    ] as const;
+
+    for (const key of locationKeys) {
+      expect(WIDE_LEGACY_ASSET_PATHS[key], key).toContain(
+        'assets/legacy/image2-restored/location-maps-v1/',
+      );
+    }
   });
 
   it('uses expanded legacy redraw fallbacks for old maps without dedicated wide art', () => {
@@ -95,13 +158,13 @@ describe('responsive wide map redraw assets', () => {
 
   it('uses the latest image2 redraw and keeps the deployable fast derivative available', () => {
     const mainMapSource = path.resolve(
-      'public/assets/legacy/redraw-wide/legacy_7k7k_2_wide_v3_image2.png',
+      'public/assets/legacy/image2-restored/location-maps-v1/legacy_7k7k_2_wide_v1_image2.png',
     );
     const mainMapFast = path.resolve(
-      'public/assets/legacy/fast/redraw-wide/legacy_7k7k_2_wide_v3_image2_fast.webp',
+      'public/assets/legacy/fast/image2-restored/location-maps-v1/legacy_7k7k_2_wide_v1_image2_fast.webp',
     );
 
-    expect(WIDE_LEGACY_ASSET_PATHS.legacy_7k7k_2).toContain('_wide_v3_image2.png');
+    expect(WIDE_LEGACY_ASSET_PATHS.legacy_7k7k_2).toContain('_wide_v1_image2.png');
     expect(existsSync(mainMapSource)).toBe(true);
     expect(existsSync(mainMapFast)).toBe(true);
     expect(readFileSync(mainMapSource).byteLength).toBeGreaterThan(3_000_000);
@@ -115,6 +178,15 @@ describe('responsive wide map redraw assets', () => {
     const routeMapSource = path.resolve('public', routeMapAssetPath);
 
     expect(readPngSize(routeMapSource)).toEqual(ROUTE_MAP_SOURCE_SIZE);
+  });
+
+  it('keeps every legacy location map tied to the native Image2 location source size', () => {
+    for (const [key, assetPath] of Object.entries(WIDE_LEGACY_ASSET_PATHS)) {
+      if (!assetPath.includes('/location-maps-v1/')) continue;
+      expect(readPngSize(path.resolve('public', assetPath)), key).toEqual(
+        LOCATION_MAP_SOURCE_SIZE,
+      );
+    }
   });
 
   it('allows ultrawide map redraws to shrink so the whole image fits phone landscape cameras', () => {
@@ -232,6 +304,29 @@ describe('responsive wide map redraw assets', () => {
     expect(routeMapSource).not.toContain("kind: 'ellipse'");
     expect(routeMapSource).not.toContain("kind: 'polygon'");
     expect(routeMapSource).not.toContain("fitMode: 'stretch'");
+  });
+
+  it('keeps legacy-location response areas synced to same-source wide-image masks', () => {
+    const locationSceneSource = readFileSync(
+      path.resolve('src/scenes/LegacyLocationScene.ts'),
+      'utf8',
+    );
+
+    expect(locationSceneSource).toContain("fitMode: 'contain'");
+    expect(locationSceneSource).toContain('LOCATION_MAP_HOTSPOT_IMAGE_MASKS');
+    expect(locationSceneSource).toContain('LOCATION_MAP_SOURCE_SIZE');
+    expect(locationSceneSource).toContain('locationMaskDisplayRect');
+    expect(locationSceneSource).toContain('screenToLocationLogicPoint');
+    expect(locationSceneSource).toContain('getDisplayBounds');
+    expect(locationSceneSource).toContain('bounds.left + mask.x * scaleX');
+    expect(locationSceneSource).toContain(
+      'containsLocationMaskPoint(mask, hitArea.width, hitArea.height',
+    );
+    expect(locationSceneSource).toContain('getPixelAlpha');
+    expect(locationSceneSource).not.toContain('legacyHotspotContour');
+    expect(locationSceneSource).not.toContain('createVerifiedContourZone');
+    expect(locationSceneSource).not.toContain('drawRaisedContour');
+    expect(locationSceneSource).not.toContain("fitMode: 'stretch'");
   });
 
   it('scrolls page-game style only after the player enters the viewport edge band', () => {

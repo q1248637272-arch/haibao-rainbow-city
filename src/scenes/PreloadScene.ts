@@ -24,6 +24,7 @@ const FAST_LEGACY_MARKERS = [
   '/screens/',
   '/restored/',
   '/image2-restored/maps/',
+  '/image2-restored/location-maps-v1/',
   '/image2-restored/home/',
   '/image2-restored/story/',
   '/image2-restored/ui/',
@@ -111,15 +112,42 @@ export function expandedLegacyAssetPath(key: string): string | null {
 }
 
 export const WIDE_LEGACY_ASSET_PATHS: Readonly<Record<string, string>> = {
-  legacy_7k7k_2: 'assets/legacy/redraw-wide/legacy_7k7k_2_wide_v3_image2.png',
+  legacy_7k7k_2:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_7k7k_2_wide_v1_image2.png',
   legacy_world_map_full: 'assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png',
   legacy_home_walkable: 'assets/legacy/redraw-wide/legacy_home_walkable_wide_v2_image2.png',
   legacy_farm_walkable: 'assets/legacy/redraw-wide/legacy_farm_walkable_wide_v2_image2.png',
   legacy_beach_integrated: 'assets/legacy/redraw-wide/legacy_beach_integrated_wide_v2_image2.png',
   legacy_gym_badge_dojo:
     'assets/legacy/redraw-wide/legacy_gym_badge_dojo_wide_v1_image2.png',
+  legacy_library_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_library_clean_wide_v1_image2.png',
+  legacy_lab_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_lab_clean_wide_v1_image2.png',
+  legacy_gym_hall:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_gym_hall_wide_v1_image2.png',
+  legacy_maze_gate_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_maze_gate_clean_wide_v1_image2.png',
+  legacy_doll_base_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_doll_base_clean_wide_v1_image2.png',
+  legacy_energy_field_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_energy_field_clean_wide_v1_image2.png',
   legacy_crystal_cave_clean:
-    'assets/legacy/redraw-wide/legacy_crystal_cave_clean_wide_v1_image2.png',
+    'assets/legacy/image2-restored/location-maps-v1/legacy_crystal_cave_clean_wide_v1_image2.png',
+  legacy_spaceship_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_spaceship_clean_wide_v1_image2.png',
+  legacy_casino_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_casino_clean_wide_v1_image2.png',
+  legacy_bath_center_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_bath_center_clean_wide_v1_image2.png',
+  legacy_coral_market_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_coral_market_clean_wide_v1_image2.png',
+  legacy_tide_playground_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_tide_playground_clean_wide_v1_image2.png',
+  legacy_star_observatory_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_star_observatory_clean_wide_v1_image2.png',
+  legacy_storm_ruins_clean:
+    'assets/legacy/image2-restored/location-maps-v1/legacy_storm_ruins_clean_wide_v1_image2.png',
 };
 
 export function wideLegacyAssetKey(key: string): string {

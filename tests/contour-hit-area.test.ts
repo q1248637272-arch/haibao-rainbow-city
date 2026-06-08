@@ -9,6 +9,11 @@ import {
   HOME_HOTSPOT_IMAGE_MASKS,
 } from '@/data/homeHotspots';
 import {
+  LOCATION_MAP_HOTSPOT_IMAGE_ASSETS,
+  LOCATION_MAP_HOTSPOT_IMAGE_MASKS,
+  LOCATION_MAP_SOURCE_SIZE,
+} from '@/data/locationMapHotspots';
+import {
   ROUTE_MAP_HOTSPOT_IDS,
   ROUTE_MAP_HOTSPOT_IMAGE_ASSETS,
   ROUTE_MAP_HOTSPOT_IMAGE_MASKS,
@@ -17,11 +22,9 @@ import {
 import {
   chooseVerifiedContourHitArea,
   containsContourPoint,
-  contourBounds,
   verifyContourHitAreaTwice,
   type ContourHitArea,
 } from '@/systems/ContourHitArea';
-import { legacyHotspotContour } from '@/systems/LegacyHotspotVisuals';
 import { LEGACY_LOCATIONS } from '@/scenes/LegacyContent';
 
 const WORLD_BOUNDS = { left: 0, right: GAME_WIDTH, top: 0, bottom: GAME_HEIGHT } as const;
@@ -135,25 +138,41 @@ describe('contour hit areas', () => {
     }
   });
 
-  it('keeps legacy-location response contours visible, bounded, and non-circular', () => {
-    for (const def of Object.values(LEGACY_LOCATIONS)) {
-      for (const hotspot of def.hotspots) {
-        const area = legacyHotspotContour(hotspot);
-        const result = verifyContourHitAreaTwice(area, {
-          label: `${def.id}.${hotspot.id}`,
-          minWidth: 24,
-          minHeight: 18,
-          worldBounds: WORLD_BOUNDS,
-        });
-        const bounds = contourBounds(area);
+  it('keeps every legacy-location hotspot on same-source wide-image masks', () => {
+    expect(Object.keys(LOCATION_MAP_HOTSPOT_IMAGE_MASKS).sort()).toEqual(
+      Object.keys(LEGACY_LOCATIONS).sort(),
+    );
 
-        expect(area.kind, `${def.id}.${hotspot.id} should use an object contour`).not.toBe(
-          'circle',
+    for (const def of Object.values(LEGACY_LOCATIONS)) {
+      expect(Object.keys(LOCATION_MAP_HOTSPOT_IMAGE_MASKS[def.id]).sort()).toEqual(
+        def.hotspots.map((hotspot) => hotspot.id).sort(),
+      );
+
+      for (const hotspot of def.hotspots) {
+        const mask = LOCATION_MAP_HOTSPOT_IMAGE_MASKS[def.id][hotspot.id];
+        expect(mask, `${def.id}.${hotspot.id} mask`).toBeDefined();
+        if (!mask) throw new Error(`${def.id}.${hotspot.id} mask is missing`);
+        expect(mask.width, `${def.id}.${hotspot.id} width`).toBeGreaterThanOrEqual(24);
+        expect(mask.height, `${def.id}.${hotspot.id} height`).toBeGreaterThanOrEqual(18);
+        expect(mask.x, `${def.id}.${hotspot.id} x`).toBeGreaterThanOrEqual(0);
+        expect(mask.y, `${def.id}.${hotspot.id} y`).toBeGreaterThanOrEqual(0);
+        expect(mask.x + mask.width, `${def.id}.${hotspot.id} right`).toBeLessThanOrEqual(
+          LOCATION_MAP_SOURCE_SIZE.width,
         );
-        expect(result.failures).toEqual([]);
-        expect(result.ok).toBe(true);
-        expect(bounds.width, `${def.id}.${hotspot.id} width`).toBeGreaterThanOrEqual(24);
-        expect(bounds.height, `${def.id}.${hotspot.id} height`).toBeGreaterThanOrEqual(18);
+        expect(mask.y + mask.height, `${def.id}.${hotspot.id} bottom`).toBeLessThanOrEqual(
+          LOCATION_MAP_SOURCE_SIZE.height,
+        );
+        expect(mask.alphaTolerance, `${def.id}.${hotspot.id} alpha tolerance`).toBeGreaterThan(0);
+
+        for (const textureKey of [mask.maskTextureKey, mask.edgeTextureKey]) {
+          const assetPath =
+            LOCATION_MAP_HOTSPOT_IMAGE_ASSETS[
+              textureKey as keyof typeof LOCATION_MAP_HOTSPOT_IMAGE_ASSETS
+            ];
+          expect(assetPath, `${def.id}.${hotspot.id} asset ${textureKey}`).toBeDefined();
+          expect(assetPath).toContain(`assets/legacy/image2-restored/location-maps-v1/${def.id}/`);
+          expect(existsSync(resolve('public', assetPath))).toBe(true);
+        }
       }
     }
   });
