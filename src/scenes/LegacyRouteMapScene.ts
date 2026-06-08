@@ -128,7 +128,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   private drawMap(): void {
     if (this.textures.exists(MAP_IMAGE_KEY)) {
       this.routeBackground = createResponsiveMapBackground(this, MAP_IMAGE_KEY, {
-        fitMode: 'contain',
+        fitMode: 'fillWidth',
       });
     } else {
       this.routeBackground = null;

@@ -244,20 +244,41 @@ describe('responsive wide map redraw assets', () => {
     }
   });
 
-  it('lets the route map fill the target wide viewport without stretch distortion', () => {
+  it('can fill wide map viewports horizontally without moving the top and bottom edges', () => {
+    const phoneLandscape = {
+      width: Math.round((844 / 390) * GAME_HEIGHT),
+      height: GAME_HEIGHT,
+    };
+
+    for (const assetPath of Object.values(WIDE_LEGACY_ASSET_PATHS)) {
+      const { width, height } = readPngSize(path.resolve('public', assetPath));
+      const fillWidth = computeResponsiveMapDisplaySize({
+        visibleWidth: phoneLandscape.width,
+        visibleHeight: phoneLandscape.height,
+        sourceWidth: width,
+        sourceHeight: height,
+        isWideRedraw: true,
+        fitMode: 'fillWidth',
+      });
+
+      expect(fillWidth.width).toBe(phoneLandscape.width);
+      expect(fillWidth.height).toBe(GAME_HEIGHT);
+    }
+  });
+
+  it('lets the route map fill the target wide viewport without vertical movement', () => {
     const visibleWidth = Math.round((2048 / 922) * GAME_HEIGHT);
-    const contain = computeResponsiveMapDisplaySize({
+    const fillWidth = computeResponsiveMapDisplaySize({
       visibleWidth,
       visibleHeight: GAME_HEIGHT,
       sourceWidth: ROUTE_MAP_SOURCE_SIZE.width,
       sourceHeight: ROUTE_MAP_SOURCE_SIZE.height,
       isWideRedraw: true,
-      fitMode: 'contain',
+      fitMode: 'fillWidth',
     });
 
-    expect(contain.width).toBeGreaterThanOrEqual(visibleWidth - 2);
-    expect(contain.width).toBeLessThanOrEqual(visibleWidth + 2);
-    expect(contain.height).toBe(GAME_HEIGHT);
+    expect(fillWidth.width).toBe(visibleWidth);
+    expect(fillWidth.height).toBe(GAME_HEIGHT);
   });
 
   it('keeps legacy map cameras independent from pointer movement', () => {
@@ -285,10 +306,10 @@ describe('responsive wide map redraw assets', () => {
     expect(homeSceneSource).not.toContain("fitMode: 'contain'");
   });
 
-  it('keeps route-map response areas synced to the undistorted background transform', () => {
+  it('keeps route-map response areas synced to the horizontally filled background transform', () => {
     const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
 
-    expect(routeMapSource).toContain("fitMode: 'contain'");
+    expect(routeMapSource).toContain("fitMode: 'fillWidth'");
     expect(routeMapSource).toContain('ROUTE_MAP_HOTSPOTS');
     expect(routeMapSource).toContain('ROUTE_MAP_SOURCE_SIZE');
     expect(routeMapSource).toContain('routeMapDisplayBounds');
@@ -312,7 +333,7 @@ describe('responsive wide map redraw assets', () => {
       'utf8',
     );
 
-    expect(locationSceneSource).toContain("fitMode: 'contain'");
+    expect(locationSceneSource).toContain("fitMode: 'fillWidth'");
     expect(locationSceneSource).toContain('LOCATION_MAP_HOTSPOT_IMAGE_MASKS');
     expect(locationSceneSource).toContain('LOCATION_MAP_SOURCE_SIZE');
     expect(locationSceneSource).toContain('locationMaskDisplayRect');

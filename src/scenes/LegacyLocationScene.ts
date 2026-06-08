@@ -361,7 +361,7 @@ export class LegacyLocationScene extends Phaser.Scene {
 
   private drawScene(def: LegacyLocationDef): void {
     this.locationBackground = createResponsiveMapBackground(this, def.textureKey, {
-      fitMode: 'contain',
+      fitMode: 'fillWidth',
       interactive: true,
       onPointerUp: (pointer: Phaser.Input.Pointer) => {
         if (this.hotspotPointerHandled) {
@@ -942,7 +942,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     const spritePoint = this.locationLogicPoint(vp.x, vp.y);
     const shadowPoint = this.locationLogicPoint(vp.x, vp.y + 20);
     const labelPoint = this.locationLogicPoint(vp.x, vp.y - 74);
-    vp.sprite.setPosition(spritePoint.x, spritePoint.y).setScale(0.64 * scale);
+    vp.sprite.setPosition(spritePoint.x, spritePoint.y).setScale(0.74 * scale);
     vp.shadow.setPosition(shadowPoint.x, shadowPoint.y).setScale(scale);
     vp.label.setPosition(labelPoint.x, labelPoint.y).setScale(scale);
     vp.sprite.setDepth(434 + spritePoint.y);
