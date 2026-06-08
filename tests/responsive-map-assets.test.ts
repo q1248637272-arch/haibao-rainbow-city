@@ -314,8 +314,11 @@ describe('responsive wide map redraw assets', () => {
     expect(routeMapSource).toContain('ROUTE_MAP_SOURCE_SIZE');
     expect(routeMapSource).toContain('routeMapDisplayBounds');
     expect(routeMapSource).toContain('routeMaskDisplayRect');
+    expect(routeMapSource).toContain('routeMaskActiveBounds');
     expect(routeMapSource).toContain('getDisplayBounds');
     expect(routeMapSource).toContain('bounds.left + mask.x * scaleX');
+    expect(routeMapSource).toContain('mask.y + active.bottom + 1');
+    expect(routeMapSource).not.toContain('this.routeMapPoint(mask.labelX, mask.labelY)');
     expect(routeMapSource).toContain('containsRouteMaskPoint(mask, hitArea.width, hitArea.height');
     expect(routeMapSource).toContain('getPixelAlpha');
     expect(routeMapSource).toContain('this.routeMapPoint(sourceStart.x, sourceStart.y)');

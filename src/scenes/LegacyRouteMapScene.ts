@@ -38,8 +38,15 @@ interface RouteMapHotspotView {
   readonly hitArea: Phaser.Geom.Rectangle;
 }
 
+interface RouteMaskActiveBounds {
+  readonly bottom: number;
+  readonly centerX: number;
+}
+
 const MAP_IMAGE_KEY = 'legacy_world_map_full';
 const ROUTE_PATROL_STAMP_TEXTURE_KEY = 'legacy_route_patrol_stamp_image2';
+const ROUTE_MAP_NAME_LABEL_HEIGHT = 28;
+const ROUTE_MAP_NAME_LABEL_GAP = 2;
 
 export class LegacyRouteMapScene extends Phaser.Scene {
   private fromScene: string = SceneKey.WORLD;
@@ -55,6 +62,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
   private navScrim: Phaser.GameObjects.Rectangle | null = null;
   private routeIntelPanel: Phaser.GameObjects.Container | null = null;
   private hoveredRouteHotspot: RouteMapHotspotDefinition | null = null;
+  private readonly routeMaskActiveBoundsCache = new Map<string, RouteMaskActiveBounds>();
 
   public constructor() {
     super({ key: SceneKey.LEGACY_ROUTE_MAP });
@@ -221,11 +229,50 @@ export class LegacyRouteMapScene extends Phaser.Scene {
     readonly y: number;
   } {
     const bounds = this.routeMapDisplayBounds();
-    const raw = this.routeMapPoint(mask.labelX, mask.labelY);
+    const scaleX = bounds.width / ROUTE_MAP_SOURCE_SIZE.width;
+    const scaleY = bounds.height / ROUTE_MAP_SOURCE_SIZE.height;
+    const active = this.routeMaskActiveBounds(mask);
+    const rawX = bounds.left + (mask.x + active.centerX) * scaleX;
+    const responseBottomY = bounds.top + (mask.y + active.bottom + 1) * scaleY;
+    const rawY = responseBottomY + ROUTE_MAP_NAME_LABEL_HEIGHT / 2 + ROUTE_MAP_NAME_LABEL_GAP;
     return {
-      x: Phaser.Math.Clamp(raw.x, bounds.left + 56, bounds.left + bounds.width - 56),
-      y: Phaser.Math.Clamp(raw.y, Math.max(104, bounds.top + 28), bounds.top + bounds.height - 40),
+      x: Phaser.Math.Clamp(rawX, bounds.left + 56, bounds.left + bounds.width - 56),
+      y: Phaser.Math.Clamp(rawY, Math.max(104, bounds.top + 28), bounds.top + bounds.height - 40),
     };
+  }
+
+  private routeMaskActiveBounds(mask: RouteMapHotspotImageMask): RouteMaskActiveBounds {
+    const cached = this.routeMaskActiveBoundsCache.get(mask.maskTextureKey);
+    if (cached) return cached;
+
+    const width = Math.max(1, mask.width);
+    const height = Math.max(1, mask.height);
+    let left = width;
+    let right = -1;
+    let bottom = -1;
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const alpha = this.textures.getPixelAlpha(x, y, mask.maskTextureKey);
+        if (!Number.isFinite(alpha) || alpha < mask.alphaTolerance) continue;
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        bottom = Math.max(bottom, y);
+      }
+    }
+
+    const active =
+      right >= left && bottom >= 0
+        ? {
+            bottom,
+            centerX: (left + right + 1) / 2,
+          }
+        : {
+            bottom: height - 1,
+            centerX: width / 2,
+          };
+    this.routeMaskActiveBoundsCache.set(mask.maskTextureKey, active);
+    return active;
   }
 
   private createMapHotspot(hotspot: RouteMapHotspotDefinition): void {
@@ -483,7 +530,7 @@ export class LegacyRouteMapScene extends Phaser.Scene {
       .setText(this.routeChallengeLabel(view.hotspot.locationId))
       .setColor(this.routeChallengeColor(view.hotspot.locationId));
     const labelWidth = Math.max(92, Math.min(156, view.labelText.width + 22));
-    const labelHeight = 28;
+    const labelHeight = ROUTE_MAP_NAME_LABEL_HEIGHT;
     const patrolColor = this.routePatrolColor(view.hotspot.locationId);
 
     view.edge.setAlpha(active ? 0.95 : 0);
