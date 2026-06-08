@@ -101,6 +101,10 @@
   - `public/assets/legacy/image2-restored/pets/legacy_pet_li_yanwen_image2.png`
   - `public/assets/legacy/image2-restored/ui/legacy_patrol_badge_image2.webp`
   - `public/assets/legacy/image2-restored/ui/legacy_route_patrol_stamp_image2.webp`
+  - `public/assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png`
+  - `public/assets/legacy/image2-restored/route-map-v6/*_mask.png`
+  - `public/assets/legacy/image2-restored/route-map-v6/*_edge.png`
+  - `public/assets/legacy/image2-restored/route-map-v6/*_cutout.png`
 - 说明：上述主角透明图、4 帧行走图、标题页、地图、精灵、补给站商品图标和巡护 UI 徽章为本项目本地重绘 / image2 修复素材，用于替换粗糙裁剪主角、旧版首页、玩法地图、纯色方块商品图标和代码内绘临时 UI。人鱼主角以旧版提取的 `legacy_player_fairy_sheet.png` 为参考修复。
 
 ## 蔡徐坤真实照片参考源（CC BY 2.5）

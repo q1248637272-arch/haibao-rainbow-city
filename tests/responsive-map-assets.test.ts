@@ -12,7 +12,7 @@ import {
 
 const WIDE_LEGACY_ASSET_PATHS: Readonly<Record<string, string>> = {
   legacy_7k7k_2: 'assets/legacy/redraw-wide/legacy_7k7k_2_wide_v3_image2.png',
-  legacy_world_map_full: 'assets/legacy/redraw-wide/legacy_world_map_full_wide_v2_image2.png',
+  legacy_world_map_full: 'assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png',
   legacy_home_walkable: 'assets/legacy/redraw-wide/legacy_home_walkable_wide_v2_image2.png',
   legacy_farm_walkable: 'assets/legacy/redraw-wide/legacy_farm_walkable_wide_v2_image2.png',
   legacy_beach_integrated: 'assets/legacy/redraw-wide/legacy_beach_integrated_wide_v2_image2.png',
@@ -172,19 +172,20 @@ describe('responsive wide map redraw assets', () => {
     }
   });
 
-  it('can stretch a complete map image to fill an expanded viewport without side gaps', () => {
+  it('lets the route map fill the target wide viewport without stretch distortion', () => {
     const visibleWidth = Math.round((2048 / 922) * GAME_HEIGHT);
-    const stretch = computeResponsiveMapDisplaySize({
+    const contain = computeResponsiveMapDisplaySize({
       visibleWidth,
       visibleHeight: GAME_HEIGHT,
-      sourceWidth: 1536,
-      sourceHeight: 1024,
-      isWideRedraw: false,
-      fitMode: 'stretch',
+      sourceWidth: ROUTE_MAP_SOURCE_SIZE.width,
+      sourceHeight: ROUTE_MAP_SOURCE_SIZE.height,
+      isWideRedraw: true,
+      fitMode: 'contain',
     });
 
-    expect(stretch.width).toBe(visibleWidth);
-    expect(stretch.height).toBe(GAME_HEIGHT);
+    expect(contain.width).toBeGreaterThanOrEqual(visibleWidth - 2);
+    expect(contain.width).toBeLessThanOrEqual(visibleWidth + 2);
+    expect(contain.height).toBe(GAME_HEIGHT);
   });
 
   it('keeps legacy map cameras independent from pointer movement', () => {
@@ -212,10 +213,10 @@ describe('responsive wide map redraw assets', () => {
     expect(homeSceneSource).not.toContain("fitMode: 'contain'");
   });
 
-  it('keeps route-map response areas synced to the stretched background transform', () => {
+  it('keeps route-map response areas synced to the undistorted background transform', () => {
     const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
 
-    expect(routeMapSource).toContain("fitMode: 'stretch'");
+    expect(routeMapSource).toContain("fitMode: 'contain'");
     expect(routeMapSource).toContain('ROUTE_MAP_HOTSPOTS');
     expect(routeMapSource).toContain('ROUTE_MAP_SOURCE_SIZE');
     expect(routeMapSource).toContain('routeMapDisplayBounds');
@@ -230,7 +231,7 @@ describe('responsive wide map redraw assets', () => {
     expect(routeMapSource).not.toContain('allowGeneratedFallback');
     expect(routeMapSource).not.toContain("kind: 'ellipse'");
     expect(routeMapSource).not.toContain("kind: 'polygon'");
-    expect(routeMapSource).not.toContain("fitMode: 'contain'");
+    expect(routeMapSource).not.toContain("fitMode: 'stretch'");
   });
 
   it('scrolls page-game style only after the player enters the viewport edge band', () => {

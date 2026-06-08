@@ -129,7 +129,7 @@ describe('contour hit areas', () => {
         const assetPath =
           ROUTE_MAP_HOTSPOT_IMAGE_ASSETS[textureKey as keyof typeof ROUTE_MAP_HOTSPOT_IMAGE_ASSETS];
         expect(assetPath, `${id} asset ${textureKey}`).toBeDefined();
-        expect(assetPath).toContain('assets/legacy/image2-restored/route-map-v3/');
+        expect(assetPath).toContain('assets/legacy/image2-restored/route-map-v6/');
         expect(existsSync(resolve('public', assetPath))).toBe(true);
       }
     }
