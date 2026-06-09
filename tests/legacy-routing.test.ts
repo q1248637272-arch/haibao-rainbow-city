@@ -86,40 +86,36 @@ describe('legacy map routing', () => {
     expect(sceneSource).toContain('legacyPatrolRewardKey');
     expect(sceneSource).toContain('legacyPatrolRewardForLocation');
     expect(sceneSource).toContain('tryClaimLegacyPatrolReward');
-    expect(sceneSource).toContain('drawPatrolBadge');
-    expect(sceneSource).toContain('patrolHud');
-    expect(sceneSource).toContain('destroyPatrolHud');
-    expect(sceneSource).toContain('目标：野外战斗或收服');
-    expect(sceneSource).toContain('奖励：+${reward.coins}币');
     expect(sceneSource).toContain('this.drawDifficultyBadge();');
-    expect(sceneSource).toContain('巡护未完成');
-    expect(sceneSource).toContain('巡护完成');
     expect(sceneSource).toContain('PlayerState.addCoins(reward.coins)');
     expect(sceneSource).toContain('PlayerState.addItem(reward.itemId, reward.itemQuantity)');
     expect(sceneSource).toContain('const patrolMessage = this.tryClaimLegacyPatrolReward();');
+    expect(sceneSource).not.toContain('drawPatrolBadge');
+    expect(sceneSource).not.toContain('patrolHud');
+    expect(sceneSource).not.toContain('destroyPatrolHud');
     expect(patrolSource).toContain('LEGACY_REWARD_SAVE_KEY');
     expect(patrolSource).toContain('legacyLocationHasPatrol');
   });
 
-  it('surfaces old-location patrol intel on the legacy route map without changing masks', () => {
+  it('keeps route-map patrol state lightweight without blocking the map art', () => {
     const routeMapSource = readFileSync(path.resolve('src/scenes/LegacyRouteMapScene.ts'), 'utf8');
 
-    expect(routeMapSource).toContain('drawRouteIntelPanel');
     expect(routeMapSource).toContain('routeChallengeLabel');
-    expect(routeMapSource).toContain('trackedRouteHotspot');
-    expect(routeMapSource).toContain('pickRouteRecommendation');
-    expect(routeMapSource).toContain('routePanelHotspot');
-    expect(routeMapSource).toContain('redrawRoutePreview');
-    expect(routeMapSource).toContain('今日推荐');
-    expect(routeMapSource).toContain('legacyPatrolRewardSummary');
     expect(routeMapSource).toContain('hasClaimedLegacyPatrolToday');
     expect(routeMapSource).toContain('containsRouteMaskPoint');
+    expect(routeMapSource).not.toContain('drawRouteIntelPanel');
+    expect(routeMapSource).not.toContain('routeIntelPanel');
+    expect(routeMapSource).not.toContain('trackedRouteHotspot');
+    expect(routeMapSource).not.toContain('pickRouteRecommendation');
+    expect(routeMapSource).not.toContain('routePanelHotspot');
+    expect(routeMapSource).not.toContain('redrawRoutePreview');
+    expect(routeMapSource).not.toContain('legacyPatrolRewardSummary');
     expect(routeMapSource).not.toContain('createVerifiedContourZone');
     expect(routeMapSource).not.toContain("kind: 'polygon'");
     expect(routeMapSource).not.toContain("kind: 'ellipse'");
   });
 
-  it('uses Cockpit-generated gpt-image-2 patrol UI assets instead of only drawn fallbacks', () => {
+  it('keeps generated patrol UI assets available but out of map overlays', () => {
     const preloadSource = readFileSync(path.resolve('src/scenes/PreloadScene.ts'), 'utf8');
     const preloaderSource = readFileSync(
       path.resolve('src/systems/SceneAssetPreloader.ts'),
@@ -137,17 +133,17 @@ describe('legacy map routing', () => {
       const assetPath = `public/assets/legacy/image2-restored/ui/${key}.webp`;
       const fastPath = `public/assets/legacy/fast/image2-restored/ui/${key}_fast.webp`;
       expect(preloadSource).toContain(`${key}:`);
-      expect(preloaderSource).toContain(key);
+      expect(preloaderSource).not.toContain(key);
       expect(existsSync(path.resolve(assetPath)), assetPath).toBe(true);
       expect(existsSync(path.resolve(fastPath)), fastPath).toBe(true);
       expect(statSync(path.resolve(assetPath)).size, assetPath).toBeGreaterThan(8_000);
       expect(statSync(path.resolve(fastPath)).size, fastPath).toBeGreaterThan(4_000);
     }
 
-    expect(locationSource).toContain("PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2'");
-    expect(locationSource).toContain("PATROL_PANEL_TEXTURE_KEY = 'legacy_patrol_task_panel_image2'");
-    expect(locationSource).toContain("this.add.image(x, y, PATROL_PANEL_TEXTURE_KEY)");
-    expect(routeMapSource).toContain(
+    expect(locationSource).not.toContain("PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2'");
+    expect(locationSource).not.toContain("PATROL_PANEL_TEXTURE_KEY = 'legacy_patrol_task_panel_image2'");
+    expect(locationSource).not.toContain("this.add.image(x, y, PATROL_PANEL_TEXTURE_KEY)");
+    expect(routeMapSource).not.toContain(
       "ROUTE_PATROL_STAMP_TEXTURE_KEY = 'legacy_route_patrol_stamp_image2'",
     );
   });

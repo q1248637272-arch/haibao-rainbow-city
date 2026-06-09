@@ -114,7 +114,7 @@ export function expandedLegacyAssetPath(key: string): string | null {
 export const WIDE_LEGACY_ASSET_PATHS: Readonly<Record<string, string>> = {
   legacy_7k7k_2:
     'assets/legacy/image2-restored/location-maps-v1/legacy_7k7k_2_wide_v1_image2.png',
-  legacy_world_map_full: 'assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png',
+  legacy_world_map_full: 'assets/legacy/image2-restored/route-map-v12/route-map-v12-image2.png',
   legacy_home_walkable: 'assets/legacy/redraw-wide/legacy_home_walkable_wide_v2_image2.png',
   legacy_farm_walkable: 'assets/legacy/redraw-wide/legacy_farm_walkable_wide_v2_image2.png',
   legacy_beach_integrated: 'assets/legacy/redraw-wide/legacy_beach_integrated_wide_v2_image2.png',

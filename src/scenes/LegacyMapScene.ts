@@ -5,14 +5,12 @@ import { getEncounter } from '@/data/encounters';
 import { getPet } from '@/data/pets';
 import { AudioManager } from '@/systems/AudioManager';
 import { gameEvents } from '@/systems/EventBus';
-import { buildGameplaySuggestions } from '@/systems/GameplayAdvisor';
 import { PlayerState } from '@/systems/PlayerState';
 import { rollEncounter } from '@/systems/EncounterRoller';
 import { preloadStartupWorldAssets } from '@/systems/SceneAssetPreloader';
 import { applyVipRareBoost } from '@/systems/VipSystem';
 import { findPixelPath, type PixelPoint } from '@/systems/PixelPathfinding';
 import { createVerifiedContourZone, drawRaisedContour } from '@/ui/ContourInteractive';
-import { createGameplayAdvisorPanel } from '@/ui/GameplayAdvisorPanel';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { createPortalFlash } from '@/ui/PortalFlash';
 import { ensurePetTexture } from '@/utils/placeholder';
@@ -252,8 +250,6 @@ export class LegacyMapScene extends Phaser.Scene {
     this.createTopButton(804, 28, '玩法', () =>
       this.scene.start(SceneKey.GUIDE, { fromScene: SceneKey.WORLD }),
     );
-    this.drawGameplayAdvisor();
-
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshPlayerCameraFollow, this);
       this.clearToast();
@@ -771,18 +767,6 @@ export class LegacyMapScene extends Phaser.Scene {
 
   private wildBattleButtonLabel(): string {
     return isWildBattleBlocked() ? '避战开' : '避战关';
-  }
-
-  private drawGameplayAdvisor(): void {
-    createGameplayAdvisorPanel(this, {
-      x: 20,
-      y: 74,
-      width: 308,
-      depth: 902,
-      fromScene: SceneKey.WORLD,
-      maxRows: 2,
-      suggestions: buildGameplaySuggestions({ save: PlayerState.snapshot(), max: 2 }),
-    });
   }
 
   private toggleWildBattle(): void {

@@ -102,10 +102,10 @@
   - `public/assets/legacy/image2-restored/ui/legacy_patrol_badge_image2.webp`
   - `public/assets/legacy/image2-restored/ui/legacy_patrol_task_panel_image2.webp`
   - `public/assets/legacy/image2-restored/ui/legacy_route_patrol_stamp_image2.webp`
-  - `public/assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png`
-  - `public/assets/legacy/image2-restored/route-map-v6/*_mask.png`
-  - `public/assets/legacy/image2-restored/route-map-v6/*_edge.png`
-  - `public/assets/legacy/image2-restored/route-map-v6/*_cutout.png`
+  - `public/assets/legacy/image2-restored/route-map-v12/route-map-v12-image2.png`
+  - `public/assets/legacy/image2-restored/route-map-v12/*_mask.png`
+  - `public/assets/legacy/image2-restored/route-map-v12/*_edge.png`
+  - `public/assets/legacy/image2-restored/route-map-v12/*_cutout.png`
   - `public/assets/legacy/image2-restored/location-maps-v1/*_wide_v1_image2.png`
   - `public/assets/legacy/image2-restored/location-maps-v1/*/*_mask.png`
   - `public/assets/legacy/image2-restored/location-maps-v1/*/*_edge.png`

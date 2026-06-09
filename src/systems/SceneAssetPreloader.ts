@@ -162,7 +162,7 @@ export function preloadStartupWorldAssets(scene: Phaser.Scene): void {
 export function preloadRouteMapAssets(scene: Phaser.Scene): void {
   preloadAssetSet(scene, {
     label: '正在展开大地图...',
-    legacyKeys: ['legacy_world_map_full', 'legacy_route_patrol_stamp_image2'],
+    legacyKeys: ['legacy_world_map_full'],
     imageAssets: ROUTE_MAP_HOTSPOT_IMAGE_ASSETS,
   });
 }
@@ -405,8 +405,6 @@ export function preloadLegacyLocationAssets(
     label: `正在准备${def.title}...`,
     legacyKeys: [
       def.textureKey,
-      'legacy_patrol_badge_image2',
-      'legacy_patrol_task_panel_image2',
       ...BASE_CHARACTER_KEYS,
       ...storyNpcKeys(locationId),
       ...(def.npcs ?? []).map((npc) => npc.textureKey),

@@ -18,7 +18,7 @@ import {
 const WIDE_LEGACY_ASSET_PATHS: Readonly<Record<string, string>> = {
   legacy_7k7k_2:
     'assets/legacy/image2-restored/location-maps-v1/legacy_7k7k_2_wide_v1_image2.png',
-  legacy_world_map_full: 'assets/legacy/image2-restored/route-map-v6/route-map-v6-image2.png',
+  legacy_world_map_full: 'assets/legacy/image2-restored/route-map-v12/route-map-v12-image2.png',
   legacy_home_walkable: 'assets/legacy/redraw-wide/legacy_home_walkable_wide_v2_image2.png',
   legacy_farm_walkable: 'assets/legacy/redraw-wide/legacy_farm_walkable_wide_v2_image2.png',
   legacy_beach_integrated: 'assets/legacy/redraw-wide/legacy_beach_integrated_wide_v2_image2.png',
@@ -225,7 +225,7 @@ describe('responsive wide map redraw assets', () => {
       expect(hitmap, hotspotId).toBeDefined();
       if (!hitmap) throw new Error(`${hotspotId} route hitmap missing`);
 
-      expect(hitmap.source, hotspotId).toContain('/route-map-v6/');
+      expect(hitmap.source, hotspotId).toContain('/route-map-v12/');
       expect(hitmap.width, hotspotId).toBe(mask.width);
       expect(hitmap.height, hotspotId).toBe(mask.height);
       expect(hitmap.threshold, hotspotId).toBe(mask.alphaTolerance);
@@ -384,7 +384,13 @@ describe('responsive wide map redraw assets', () => {
     );
     expect(routeMapSource).toContain('hitmask.runs[String(y)]');
     expect(routeMapSource).toContain('getPixelAlpha');
-    expect(routeMapSource).toContain('this.routeMapPoint(sourceStart.x, sourceStart.y)');
+    expect(routeMapSource).not.toContain('drawRouteIntelPanel');
+    expect(routeMapSource).not.toContain('routeIntelPanel');
+    expect(routeMapSource).not.toContain('trackedRouteHotspot');
+    expect(routeMapSource).not.toContain('pickRouteRecommendation');
+    expect(routeMapSource).not.toContain('routePanelHotspot');
+    expect(routeMapSource).not.toContain('redrawRoutePreview');
+    expect(routeMapSource).not.toContain('今日推荐');
     expect(routeMapSource).not.toContain('createVerifiedContourZone');
     expect(routeMapSource).not.toContain('drawRaisedContour');
     expect(routeMapSource).not.toContain('allowGeneratedFallback');

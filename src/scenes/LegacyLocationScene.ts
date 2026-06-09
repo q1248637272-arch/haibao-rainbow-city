@@ -15,7 +15,6 @@ import {
 import { getPet } from '@/data/pets';
 import { completeActivityTask, consumePendingActivityTask } from '@/systems/ActivityProgress';
 import { gameEvents } from '@/systems/EventBus';
-import { buildGameplaySuggestions } from '@/systems/GameplayAdvisor';
 import { isPortalLikeHotspot } from '@/systems/LegacyHotspotVisuals';
 import { PlayerState } from '@/systems/PlayerState';
 import { rollEncounter } from '@/systems/EncounterRoller';
@@ -28,7 +27,6 @@ import {
   type VirtualPlayer,
 } from '@/systems/VirtualPlayers';
 import { findPixelPath, type PixelPoint } from '@/systems/PixelPathfinding';
-import { createGameplayAdvisorPanel } from '@/ui/GameplayAdvisorPanel';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { createPortalFlash } from '@/ui/PortalFlash';
 import { ensurePetTexture } from '@/utils/placeholder';
@@ -44,7 +42,6 @@ import {
   legacyDailyRewardKey,
   legacyLocationHasPatrol,
   legacyPatrolChainTarget,
-  legacyPatrolChainProgressLabel,
   legacyPatrolRewardForLocation,
   legacyPatrolRewardKey,
   legacyTodayKey,
@@ -79,8 +76,6 @@ const LOCATION_ROAMING_PET_COUNT = 1;
 const LOCATION_VIRTUAL_PLAYER_COUNT = 2;
 const ENCOUNTER_RETURN_COOLDOWN_MS = 1800;
 const ENCOUNTER_RESUME_MOVE_DISTANCE = 28;
-const PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2';
-const PATROL_PANEL_TEXTURE_KEY = 'legacy_patrol_task_panel_image2';
 const LOCATION_LOGIC_SIZE = { width: GAME_WIDTH, height: GAME_HEIGHT } as const;
 
 type LocationMappedGameObject = Phaser.GameObjects.GameObject & {
@@ -256,7 +251,7 @@ export class LegacyLocationScene extends Phaser.Scene {
   private locationBackground: ResponsiveMapBackground | null = null;
   private mappedLocationObjects: LocationMappedObject[] = [];
   private locationHotspotViews: LocationMapHotspotView[] = [];
-  private patrolHud: Phaser.GameObjects.Container | null = null;
+  private difficultyHud: Phaser.GameObjects.Container | null = null;
   private playerLogicPoint = { x: 0, y: 0 };
 
   public constructor() {
@@ -286,7 +281,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.locationBackground = null;
     this.mappedLocationObjects = [];
     this.locationHotspotViews = [];
-    this.patrolHud = null;
+    this.difficultyHud = null;
   }
 
   public preload(): void {
@@ -336,12 +331,10 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.createTopButton(804, 28, '玩法', () =>
       this.scene.start(SceneKey.GUIDE, { fromScene: SceneKey.LEGACY_LOCATION }),
     );
-    this.drawGameplayAdvisor();
-
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshLocationLayout, this);
       this.destroyLocationHotspots();
-      this.destroyPatrolHud();
+      this.destroyDifficultyHud();
       this.clearToast();
       this.locationBackground = null;
       this.mappedLocationObjects = [];
@@ -1312,11 +1305,11 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private tryClaimLegacyPatrolReward(): string | null {
-    if (!legacyLocationHasPatrol(this.locationId) || hasClaimedLegacyPatrolToday(this.locationId)) {
-      return null;
-    }
-
+    if (!legacyLocationHasPatrol(this.locationId)) return null;
+    if (hasClaimedLegacyPatrolToday(this.locationId)) return null;
     const reward = legacyPatrolRewardForLocation(this.locationId);
+    if (!reward) return null;
+
     PlayerState.addCoins(reward.coins);
     PlayerState.addItem(reward.itemId, reward.itemQuantity);
     markLegacyRewardClaimedToday(legacyPatrolRewardKey(this.locationId));
@@ -1433,19 +1426,6 @@ export class LegacyLocationScene extends Phaser.Scene {
     return isWildBattleBlocked() ? '避战开' : '避战关';
   }
 
-  private drawGameplayAdvisor(): void {
-    createGameplayAdvisorPanel(this, {
-      x: 20,
-      y: 74,
-      width: 308,
-      depth: 902,
-      fromScene: SceneKey.LEGACY_LOCATION,
-      sceneData: { returnLocationId: this.locationId },
-      maxRows: 2,
-      suggestions: buildGameplaySuggestions({ save: PlayerState.snapshot(), max: 2 }),
-    });
-  }
-
   private toggleWildBattle(): void {
     const blocked = toggleWildBattleBlocked();
     this.showToast(blocked ? '已屏蔽野生精灵战斗。' : '已恢复野生精灵战斗。');
@@ -1541,7 +1521,7 @@ export class LegacyLocationScene extends Phaser.Scene {
       : roll;
     if (!encounter) {
       this.battleStarting = false;
-      this.showToast('这里暂时很安静。');
+      this.showToast('这里暂时没有对手。');
       return;
     }
     const fixedLevelEncounter = {
@@ -1569,10 +1549,10 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private drawDifficultyBadge(): void {
-    this.destroyPatrolHud();
+    this.destroyDifficultyHud();
 
     const diff = difficultyForLocation(this.locationId);
-    const label = `${recommendedLevelLabel(this.locationId)}  野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`;
+    const label = `${recommendedLevelLabel(this.locationId)} · 野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`;
     const x = GAME_WIDTH - 170;
     const y = 76;
     const width = 300;
@@ -1591,118 +1571,12 @@ export class LegacyLocationScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     hud.add([difficultyBg, difficultyText]);
-    this.drawPatrolBadge(hud, x, y + 92, width);
-    this.patrolHud = hud;
+    this.difficultyHud = hud;
   }
 
-  private destroyPatrolHud(): void {
-    this.patrolHud?.destroy(true);
-    this.patrolHud = null;
-  }
-
-  private drawPatrolBadge(
-    hud: Phaser.GameObjects.Container,
-    x: number,
-    y: number,
-    width: number,
-  ): void {
-    if (!legacyLocationHasPatrol(this.locationId)) return;
-
-    const reward = legacyPatrolRewardForLocation(this.locationId);
-    const claimed = hasClaimedLegacyPatrolToday(this.locationId);
-    const fill = claimed ? 0x123b4b : 0x174b68;
-    const stroke = claimed ? 0x8fe8ff : 0xffd166;
-    const title = claimed ? '巡护 已完成' : '巡护 待完成';
-    const objective = claimed ? '目标完成：今日奖励已入账' : '目标：野外战斗或收服';
-    const detail = claimed
-      ? `明日刷新 · ${legacyPatrolChainProgressLabel()}`
-      : `奖励：+${reward.coins}币 +${reward.itemQuantity}${reward.itemLabel} · ${legacyPatrolChainProgressLabel()}`;
-    const hasImagePanel = this.textures.exists(PATROL_PANEL_TEXTURE_KEY);
-    const badgeHeight = hasImagePanel ? 162 : 78;
-    const bg = hasImagePanel
-      ? this.add.image(x, y, PATROL_PANEL_TEXTURE_KEY).setDisplaySize(width, badgeHeight)
-      : this.add.rectangle(x, y, width, badgeHeight, fill, 0.84).setStrokeStyle(2, stroke, 0.72);
-    const textLeft = hasImagePanel ? x - width / 2 + 112 : x - width / 2 + 50;
-    const textWidth = hasImagePanel ? width - 132 : width - 60;
-    const titleY = hasImagePanel ? y - 43 : y - 25;
-    const objectiveY = hasImagePanel ? y - 1 : y - 4;
-    const detailY = hasImagePanel ? y + 39 : y + 17;
-    const icon = hasImagePanel
-      ? null
-      : this.drawPatrolBadgeIcon(x - width / 2 + 26, y - 15, stroke, claimed);
-
-    const titleText = this.add
-      .text(textLeft, titleY, title, {
-        fontFamily: 'Microsoft YaHei, sans-serif',
-        fontSize: hasImagePanel ? '15px' : '14px',
-        color: claimed ? '#c8f7ff' : '#fff6d2',
-        stroke: '#1b1b3a',
-        strokeThickness: 3,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0, 0.5);
-    const statusPill = this.add
-      .text(x + width / 2 - 42, titleY, claimed ? 'DONE' : 'TODAY', {
-        fontFamily: 'Microsoft YaHei, sans-serif',
-        fontSize: '10px',
-        color: claimed ? '#123b4b' : '#4b3000',
-        backgroundColor: claimed ? '#bff8ff' : '#ffd166',
-        padding: { left: 5, right: 5, top: 2, bottom: 2 },
-      })
-      .setOrigin(0.5);
-    const objectiveText = this.add
-      .text(textLeft, objectiveY, objective, {
-        fontFamily: 'Microsoft YaHei, sans-serif',
-        fontSize: '12px',
-        color: claimed ? '#c8f7ff' : '#fff6d2',
-        stroke: '#1b1b3a',
-        strokeThickness: 3,
-        fixedWidth: textWidth,
-      })
-      .setOrigin(0, 0.5);
-    const detailText = this.add
-      .text(textLeft, detailY, detail, {
-        fontFamily: 'Microsoft YaHei, sans-serif',
-        fontSize: '11px',
-        color: claimed ? '#c8f7ff' : '#fff6d2',
-        stroke: '#1b1b3a',
-        strokeThickness: 3,
-        fixedWidth: textWidth,
-      })
-      .setOrigin(0, 0.5);
-    hud.add([
-      bg,
-      ...(icon === null ? [] : [icon]),
-      titleText,
-      statusPill,
-      objectiveText,
-      detailText,
-    ]);
-  }
-
-  private drawPatrolBadgeIcon(
-    x: number,
-    y: number,
-    stroke: number,
-    claimed: boolean,
-  ): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
-    if (this.textures.exists(PATROL_BADGE_TEXTURE_KEY)) {
-      return this.add.image(x, y, PATROL_BADGE_TEXTURE_KEY).setDisplaySize(34, 34);
-    }
-
-    const icon = this.add.graphics();
-    icon.lineStyle(2, stroke, 0.92);
-    icon.strokeCircle(x, y, 12);
-    icon.lineStyle(1, 0xffffff, 0.72);
-    icon.beginPath();
-    icon.moveTo(x, y - 16);
-    icon.lineTo(x, y + 16);
-    icon.moveTo(x - 16, y);
-    icon.lineTo(x + 16, y);
-    icon.strokePath();
-    icon.fillStyle(claimed ? 0x8fe8ff : 0xffef9a, 0.9);
-    icon.fillTriangle(x, y - 9, x + 5, y + 4, x - 4, y + 2);
-    return icon;
+  private destroyDifficultyHud(): void {
+    this.difficultyHud?.destroy(true);
+    this.difficultyHud = null;
   }
 
   private showReturnToast(): void {
@@ -1710,10 +1584,10 @@ export class LegacyLocationScene extends Phaser.Scene {
       this.showToast('已经离开战斗。');
       this.escapedFromBattle = false;
     } else if (this.justDefeatedTrainerName) {
-      this.showToast(`战胜了虚拟玩家 ${this.justDefeatedTrainerName}！`);
+      this.showToast(`战胜训练师：${this.justDefeatedTrainerName}！`);
       this.justDefeatedTrainerName = null;
     } else if (this.justLostTrainerBattle) {
-      this.showToast('这次玩家对战输了，调整队伍后再挑战吧。');
+      this.showToast('训练师暂时占了上风，调整队伍后再挑战吧。');
       this.justLostTrainerBattle = false;
     } else if (this.justCapturedPetId) {
       const pet = getPet(this.justCapturedPetId);
@@ -1742,7 +1616,7 @@ export class LegacyLocationScene extends Phaser.Scene {
       return;
     }
     if (!lead) {
-      this.showToast(`${virtualPlayerDisplayName(trainer)} 的队伍还没准备好。`);
+      this.showToast(`${virtualPlayerDisplayName(trainer)} 还没有准备好对战队伍。`);
       return;
     }
     const live = PlayerState.getPlayerPet(myPet.petId);
@@ -1763,7 +1637,7 @@ export class LegacyLocationScene extends Phaser.Scene {
   private virtualPlayerLabel(player: VirtualPlayer): string {
     const lead = player.party[0];
     const petName = lead ? (getPet(lead.petId)?.name ?? '精灵') : '精灵';
-    return `${virtualPlayerDisplayName(player)}\n搭档 ${petName} Lv${lead?.level ?? 1}`;
+    return `${virtualPlayerDisplayName(player)}\n携带 ${petName} Lv${lead?.level ?? 1}`;
   }
 
   private ensureVirtualPlayerAnimation(sheetKey: string): void {

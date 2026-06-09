@@ -6,12 +6,10 @@ import { RAINBOW_CITY } from '@/data/maps';
 import { getPet } from '@/data/pets';
 import { AudioManager } from '@/systems/AudioManager';
 import { gameEvents } from '@/systems/EventBus';
-import { buildGameplaySuggestions } from '@/systems/GameplayAdvisor';
 import { PlayerState } from '@/systems/PlayerState';
 import { computeIsoFacing } from '@/systems/direction';
 import { applyVipRareBoost } from '@/systems/VipSystem';
 import type { IsoDir } from '@/types/direction';
-import { createGameplayAdvisorPanel } from '@/ui/GameplayAdvisorPanel';
 import { type HudHandle } from '@/ui/Hud';
 import { createNavIconButton } from '@/ui/NavIconButton';
 import { haibaoTextureKey } from '@/utils/haibaoSprite';
@@ -105,7 +103,6 @@ export class WorldMapScene extends Phaser.Scene {
     // 4. 标题提示。
     this.drawTitleHint();
     this.drawQuickButtons();
-    this.drawGameplayAdvisor();
 
     // 5. BOSS 勋章（若已击败）。
     this.drawBossMedal();
@@ -310,17 +307,6 @@ export class WorldMapScene extends Phaser.Scene {
         depth: 1002,
       }),
     );
-  }
-
-  private drawGameplayAdvisor(): void {
-    createGameplayAdvisorPanel(this, {
-      x: 22,
-      y: 88,
-      width: 330,
-      depth: 1002,
-      fromScene: SceneKey.WORLD,
-      suggestions: buildGameplaySuggestions({ save: PlayerState.snapshot(), max: 3 }),
-    });
   }
 
   private drawTitleHint(): void {
