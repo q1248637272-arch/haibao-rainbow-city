@@ -252,6 +252,9 @@ export class LegacyLocationScene extends Phaser.Scene {
   private mappedLocationObjects: LocationMappedObject[] = [];
   private locationHotspotViews: LocationMapHotspotView[] = [];
   private difficultyHud: Phaser.GameObjects.Container | null = null;
+  private battlePrepHud: Phaser.GameObjects.Container | null = null;
+  private rewardBanner: Phaser.GameObjects.Container | null = null;
+  private rewardBannerTimer: Phaser.Time.TimerEvent | null = null;
   private playerLogicPoint = { x: 0, y: 0 };
 
   public constructor() {
@@ -282,6 +285,9 @@ export class LegacyLocationScene extends Phaser.Scene {
     this.mappedLocationObjects = [];
     this.locationHotspotViews = [];
     this.difficultyHud = null;
+    this.battlePrepHud = null;
+    this.rewardBanner = null;
+    this.rewardBannerTimer = null;
   }
 
   public preload(): void {
@@ -335,6 +341,8 @@ export class LegacyLocationScene extends Phaser.Scene {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.refreshLocationLayout, this);
       this.destroyLocationHotspots();
       this.destroyDifficultyHud();
+      this.destroyBattlePrepHud();
+      this.destroyRewardBanner();
       this.clearToast();
       this.locationBackground = null;
       this.mappedLocationObjects = [];
@@ -385,9 +393,7 @@ export class LegacyLocationScene extends Phaser.Scene {
 
   private setupPlayer(def: LegacyLocationDef): void {
     this.playerLogicPoint = { x: def.playerStart.x, y: def.playerStart.y - 18 };
-    this.playerShadow = this.add
-      .ellipse(0, 0, 52, 17, 0x000000, 0.26)
-      .setDepth(400);
+    this.playerShadow = this.add.ellipse(0, 0, 52, 17, 0x000000, 0.26).setDepth(400);
     this.player = this.add
       .sprite(0, 0, currentPlayerSheetKey(), 0)
       .setOrigin(0.5, 0.88)
@@ -472,20 +478,8 @@ export class LegacyLocationScene extends Phaser.Scene {
         label.setPosition(point.x, point.y);
         labelBg.fillStyle(0x0b3768, 0.86);
         labelBg.lineStyle(2, color, 0.88);
-        labelBg.fillRoundedRect(
-          point.x - width / 2,
-          point.y - height - 8,
-          width,
-          height,
-          7,
-        );
-        labelBg.strokeRoundedRect(
-          point.x - width / 2,
-          point.y - height - 8,
-          width,
-          height,
-          7,
-        );
+        labelBg.fillRoundedRect(point.x - width / 2, point.y - height - 8, width, height, 7);
+        labelBg.strokeRoundedRect(point.x - width / 2, point.y - height - 8, width, height, 7);
       }
       label.setColor('#fff7c7');
     };
@@ -574,10 +568,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     };
   }
 
-  private locationMapSourcePoint(
-    x: number,
-    y: number,
-  ): { readonly x: number; readonly y: number } {
+  private locationMapSourcePoint(x: number, y: number): { readonly x: number; readonly y: number } {
     const bounds = this.locationDisplayBounds();
     return {
       x: bounds.left + x * (bounds.width / LOCATION_MAP_SOURCE_SIZE.width),
@@ -697,9 +688,7 @@ export class LegacyLocationScene extends Phaser.Scene {
     const textureKey = this.textures.exists(npc.textureKey)
       ? npc.textureKey
       : 'legacy_player_fairy';
-    const shadow = this.add
-      .ellipse(0, 0, 42, 14, 0x000000, 0.24)
-      .setDepth(420 + npc.y);
+    const shadow = this.add.ellipse(0, 0, 42, 14, 0x000000, 0.24).setDepth(420 + npc.y);
     const sprite = this.add
       .image(0, 0, textureKey)
       .setOrigin(0.5, 0.88)
@@ -1169,6 +1158,8 @@ export class LegacyLocationScene extends Phaser.Scene {
   }
 
   private setMovePath(def: LegacyLocationDef, target: PixelPoint, action?: LegacyAction): void {
+    this.destroyBattlePrepHud();
+    this.destroyRewardBanner();
     const path = findPixelPath({
       bounds: def.walkArea,
       start: { x: this.playerLogicPoint.x, y: this.playerLogicPoint.y },
@@ -1269,7 +1260,7 @@ export class LegacyLocationScene extends Phaser.Scene {
         this.showToast('已开启避战，野生精灵不会主动拉你进入战斗。');
         return;
       }
-      this.startWildBattle(action.encounterZoneId);
+      this.showBattlePrepPanel(action);
       return;
     }
     if (action.kind === 'reward') {
@@ -1277,6 +1268,230 @@ export class LegacyLocationScene extends Phaser.Scene {
       return;
     }
     this.showToast(action.message ?? '这里还在修复中。');
+  }
+
+  private showBattlePrepPanel(action: LegacyAction): void {
+    const zoneId = action.encounterZoneId;
+    if (!zoneId) return;
+
+    this.clearToast();
+    this.destroyBattlePrepHud();
+    this.destroyRewardBanner();
+
+    const active = PlayerState.snapshot().playerPets[0];
+    if (!active) {
+      this.showToast('没有可出战的精灵。');
+      return;
+    }
+    const live = PlayerState.getPlayerPet(active.petId) ?? active;
+    const petName = getPet(active.petId)?.name ?? '精灵';
+    const diff = difficultyForLocation(this.locationId);
+    const patrolReady =
+      legacyLocationHasPatrol(this.locationId) && !hasClaimedLegacyPatrolToday(this.locationId);
+    const patrolReward = legacyPatrolRewardForLocation(this.locationId);
+    const patrolLine = patrolReady
+      ? `巡护奖励：胜利/收服后 +${patrolReward.coins} 彩虹币，+${patrolReward.itemQuantity} ${patrolReward.itemLabel}`
+      : legacyLocationHasPatrol(this.locationId)
+        ? '巡护奖励：今日已完成，继续战斗仍可获得经验与掉落。'
+        : '巡护奖励：此地点暂无每日巡护。';
+    const hpLine = `出战：${petName} Lv${active.level} · HP ${live.currentHp}/${live.currentStats.hp}`;
+    const danger = live.currentHp <= Math.ceil(live.currentStats.hp * 0.35);
+    const width = 650;
+    const height = 162;
+    const panel = this.add
+      .container(GAME_WIDTH / 2, GAME_HEIGHT - 108)
+      .setDepth(1220)
+      .setScrollFactor(0);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x061d36, 0.9);
+    bg.lineStyle(3, patrolReady ? 0xffd166 : 0x8fe8ff, 0.86);
+    bg.fillRoundedRect(-width / 2, -height / 2, width, height, 14);
+    bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 14);
+    bg.fillStyle(0x0b6faf, 0.72);
+    bg.fillRoundedRect(-width / 2 + 16, -height / 2 + 14, width - 32, 34, 10);
+
+    const title = this.add
+      .text(-width / 2 + 32, -height / 2 + 31, `战斗准备 · ${action.label}`, {
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+        fontSize: '20px',
+        color: '#ffffff',
+        stroke: '#1b1b3a',
+        strokeThickness: 4,
+      })
+      .setOrigin(0, 0.5);
+    const levelText = this.add
+      .text(
+        -width / 2 + 32,
+        -height / 2 + 65,
+        `${recommendedLevelLabel(this.locationId)} · 野外 Lv${diff.wildLevelRange[0]}-${diff.wildLevelRange[1]}`,
+        {
+          fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+          fontSize: '15px',
+          color: '#fff4a8',
+          stroke: '#1b1b3a',
+          strokeThickness: 3,
+        },
+      )
+      .setOrigin(0, 0.5);
+    const petText = this.add
+      .text(-width / 2 + 32, -height / 2 + 91, hpLine, {
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+        fontSize: '15px',
+        color: danger ? '#ffd3d3' : '#c8f7ff',
+        stroke: '#1b1b3a',
+        strokeThickness: 3,
+      })
+      .setOrigin(0, 0.5);
+    const rewardText = this.add
+      .text(-width / 2 + 32, -height / 2 + 116, patrolLine, {
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+        fontSize: '14px',
+        color: patrolReady ? '#ffe6a3' : '#d9f6ff',
+        stroke: '#1b1b3a',
+        strokeThickness: 3,
+        fixedWidth: width - 64,
+      })
+      .setOrigin(0, 0.5);
+
+    panel.add([bg, title, levelText, petText, rewardText]);
+    this.addBattlePrepButton(
+      panel,
+      width / 2 - 258,
+      height / 2 - 26,
+      112,
+      '开始遭遇',
+      0xff9f2f,
+      () => this.startPreparedWildBattle(zoneId),
+    );
+    this.addBattlePrepButton(
+      panel,
+      width / 2 - 138,
+      height / 2 - 26,
+      100,
+      '整理队伍',
+      0x1599c8,
+      () => this.scene.start(SceneKey.PET_MANAGER, { fromScene: SceneKey.LEGACY_LOCATION }),
+    );
+    this.addBattlePrepButton(panel, width / 2 - 42, height / 2 - 26, 78, '取消', 0x46627a, () =>
+      this.destroyBattlePrepHud(),
+    );
+
+    panel.setAlpha(0).setScale(0.94);
+    this.tweens.add({
+      targets: panel,
+      alpha: 1,
+      scale: 1,
+      duration: 180,
+      ease: 'Back.easeOut',
+    });
+    this.battlePrepHud = panel;
+  }
+
+  private addBattlePrepButton(
+    panel: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    width: number,
+    label: string,
+    fill: number,
+    onClick: () => void,
+  ): void {
+    const bg = this.add
+      .rectangle(x, y, width, 34, fill, 0.94)
+      .setStrokeStyle(2, 0xffffff, 0.78)
+      .setInteractive({ useHandCursor: true });
+    const text = this.add
+      .text(x, y, label, {
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+        fontSize: '14px',
+        color: '#ffffff',
+        stroke: '#1b1b3a',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    bg.on('pointerover', () => bg.setFillStyle(fill, 1));
+    bg.on('pointerout', () => bg.setFillStyle(fill, 0.94));
+    bg.on('pointerup', onClick);
+    panel.add([bg, text]);
+  }
+
+  private startPreparedWildBattle(zoneId: string): void {
+    if (this.battleStarting) return;
+    this.destroyBattlePrepHud();
+    this.battleStarting = true;
+    this.startWildBattle(zoneId);
+  }
+
+  private destroyBattlePrepHud(): void {
+    this.battlePrepHud?.destroy(true);
+    this.battlePrepHud = null;
+  }
+
+  private showRewardBanner(title: string, lines: readonly string[]): void {
+    this.clearToast();
+    this.destroyBattlePrepHud();
+    this.destroyRewardBanner();
+
+    const safeLines = lines.length > 0 ? lines : ['奖励已结算。'];
+    const width = 690;
+    const height = 82 + safeLines.length * 24;
+    const panel = this.add
+      .container(GAME_WIDTH / 2, GAME_HEIGHT - 116)
+      .setDepth(1240)
+      .setScrollFactor(0);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x061d36, 0.88);
+    bg.lineStyle(3, 0xffd166, 0.9);
+    bg.fillRoundedRect(-width / 2, -height / 2, width, height, 14);
+    bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 14);
+    bg.fillStyle(0xff9f2f, 0.18);
+    bg.fillRoundedRect(-width / 2 + 16, -height / 2 + 14, width - 32, 34, 10);
+    panel.add(bg);
+
+    const titleText = this.add
+      .text(-width / 2 + 34, -height / 2 + 31, title, {
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+        fontSize: '20px',
+        color: '#ffffff',
+        stroke: '#1b1b3a',
+        strokeThickness: 4,
+      })
+      .setOrigin(0, 0.5);
+    panel.add(titleText);
+
+    safeLines.forEach((line, index) => {
+      const text = this.add
+        .text(-width / 2 + 34, -height / 2 + 66 + index * 24, line, {
+          fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+          fontSize: '15px',
+          color: index === 0 ? '#fff4a8' : '#c8f7ff',
+          stroke: '#1b1b3a',
+          strokeThickness: 3,
+          fixedWidth: width - 68,
+        })
+        .setOrigin(0, 0.5);
+      panel.add(text);
+    });
+
+    panel.setAlpha(0).setScale(0.94);
+    this.tweens.add({
+      targets: panel,
+      alpha: 1,
+      scale: 1,
+      duration: 180,
+      ease: 'Back.easeOut',
+    });
+    this.rewardBanner = panel;
+    this.rewardBannerTimer = this.time.delayedCall(3600 + safeLines.length * 360, () =>
+      this.destroyRewardBanner(),
+    );
+  }
+
+  private destroyRewardBanner(): void {
+    this.rewardBannerTimer?.remove(false);
+    this.rewardBannerTimer = null;
+    this.rewardBanner?.destroy(true);
+    this.rewardBanner = null;
   }
 
   private claimLegacyReward(action: LegacyAction): void {
@@ -1593,13 +1808,21 @@ export class LegacyLocationScene extends Phaser.Scene {
       const pet = getPet(this.justCapturedPetId);
       const patrolMessage = this.tryClaimLegacyPatrolReward();
       const captureMessage = pet ? `你收服了 ${pet.name}！` : '你收服了一只新伙伴！';
-      this.showToast(patrolMessage ? `${captureMessage}\n${patrolMessage}` : captureMessage);
+      this.showRewardBanner(
+        captureMessage,
+        patrolMessage
+          ? patrolMessage.split('\n')
+          : ['图鉴与队伍进度已更新，继续探索会遇到新的精灵。'],
+      );
       this.justCapturedPetId = null;
     } else if (this.justDefeatedWildPetId) {
       const pet = getPet(this.justDefeatedWildPetId);
       const patrolMessage = this.tryClaimLegacyPatrolReward();
       const defeatMessage = pet ? `战胜 ${pet.name}！` : '战胜了野生精灵！';
-      this.showToast(patrolMessage ? `${defeatMessage}\n${patrolMessage}` : defeatMessage);
+      this.showRewardBanner(
+        defeatMessage,
+        patrolMessage ? patrolMessage.split('\n') : ['经验、彩虹币与掉落已在战斗结算中发放。'],
+      );
       this.justDefeatedWildPetId = null;
     } else if (this.justLostWildBattle) {
       this.showToast('野生精灵跑远了。');

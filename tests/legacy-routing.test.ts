@@ -76,6 +76,14 @@ describe('legacy map routing', () => {
     expect(echo.action.encounterZoneId).toBe('rainbow_city:garden');
     expect(sceneSource).toContain('for (const hotspot of def.hotspots)');
     expect(sceneSource).toContain('hotspotStatusSuffix');
+    expect(sceneSource).toContain('showBattlePrepPanel');
+    expect(sceneSource).toContain('startPreparedWildBattle');
+    expect(sceneSource).toContain('战斗准备 · ${action.label}');
+    expect(sceneSource).toContain('开始遭遇');
+    expect(sceneSource).toContain('整理队伍');
+    expect(sceneSource).toContain('巡护奖励：胜利/收服后');
+    expect(sceneSource).toContain('this.showBattlePrepPanel(action)');
+    expect(sceneSource).not.toContain('this.startWildBattle(action.encounterZoneId)');
     expect(sceneSource).not.toContain("item.action.kind !== 'battle'");
   });
 
@@ -90,6 +98,9 @@ describe('legacy map routing', () => {
     expect(sceneSource).toContain('PlayerState.addCoins(reward.coins)');
     expect(sceneSource).toContain('PlayerState.addItem(reward.itemId, reward.itemQuantity)');
     expect(sceneSource).toContain('const patrolMessage = this.tryClaimLegacyPatrolReward();');
+    expect(sceneSource).toContain('showRewardBanner');
+    expect(sceneSource).toContain('destroyRewardBanner');
+    expect(sceneSource).toContain('经验、彩虹币与掉落已在战斗结算中发放。');
     expect(sceneSource).not.toContain('drawPatrolBadge');
     expect(sceneSource).not.toContain('patrolHud');
     expect(sceneSource).not.toContain('destroyPatrolHud');
@@ -141,8 +152,10 @@ describe('legacy map routing', () => {
     }
 
     expect(locationSource).not.toContain("PATROL_BADGE_TEXTURE_KEY = 'legacy_patrol_badge_image2'");
-    expect(locationSource).not.toContain("PATROL_PANEL_TEXTURE_KEY = 'legacy_patrol_task_panel_image2'");
-    expect(locationSource).not.toContain("this.add.image(x, y, PATROL_PANEL_TEXTURE_KEY)");
+    expect(locationSource).not.toContain(
+      "PATROL_PANEL_TEXTURE_KEY = 'legacy_patrol_task_panel_image2'",
+    );
+    expect(locationSource).not.toContain('this.add.image(x, y, PATROL_PANEL_TEXTURE_KEY)');
     expect(routeMapSource).not.toContain(
       "ROUTE_PATROL_STAMP_TEXTURE_KEY = 'legacy_route_patrol_stamp_image2'",
     );
